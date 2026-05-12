@@ -1096,16 +1096,87 @@ async function runBriefing() {
 }
 
 // ── Send email ──────────────────────────────────────────────────────────
-function sendBriefing() {
+async function sendBriefing() {
   const email = document.getElementById('email-input').value;
+  const noteEl = document.getElementById('send-note');
   if (!email || !briefingData) return;
 
-  // Build mailto with the commute script as body
-  const subject = encodeURIComponent(`Utility Briefing — ${now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`);
-  const body = encodeURIComponent(commuteScript + '\n\n---\nFull briefing powered by Claude.');
-  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  noteEl.textContent = 'Sending...';
 
-  document.getElementById('send-note').textContent = `✓ Opening your email client to send to ${email}`;
+  const dateStr = now.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+
+  // Build HTML email body
+  const categoryColors = {
+    ma:         {bg:'#EEEDFE', color:'#3C3489', label:'M&A'},
+    financial:  {bg:'#E1F5EE', color:'#085041', label:'Financial'},
+    regulatory: {bg:'#FAEEDA', color:'#633806', label:'Regulatory'},
+    news:       {bg:'#E6F1FB', color:'#0C447C', label:'News'},
+  };
+
+  const utilitySections = briefingData.map(d => {
+    const newsRows = (d.news || []).map(n => {
+      const cat = categoryColors[n.category] || categoryColors.news;
+      return `<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+        <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1a1a1a;">${n.headline}</p>
+        <p style="margin:0 0 6px;font-size:12px;">
+          <span style="background:${cat.bg};color:${cat.color};padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;">${cat.label}</span>
+          &nbsp;${n.source || ''}
+        </p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">${n.summary || ''}</p>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;margin-bottom:4px;">${d.utility}</div>
+      <p style="margin:0 0 14px;font-size:14px;color:#555;">${d.key_takeaway || ''}</p>
+      ${newsRows || '<p style="color:#aaa;font-size:13px;">No items retrieved.</p>'}
+    </div>`;
+  }).join('');
+
+  const htmlEmail = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<div style="max-width:620px;margin:0 auto;padding:24px 16px;">
+  <div style="background:#1a1a1a;border-radius:10px;padding:24px 28px;margin-bottom:20px;">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:6px;">Daily Intelligence Briefing</div>
+    <h1 style="margin:0 0 4px;font-size:22px;font-weight:600;color:#fff;">Utility Partners Update</h1>
+    <p style="margin:0;font-size:13px;color:#aaa;">${dateStr}</p>
+    <p style="margin:10px 0 0;font-size:12px;color:#666;">Georgia Power &nbsp;·&nbsp; Duke Energy &nbsp;·&nbsp; Dominion Energy &nbsp;·&nbsp; SDG&amp;E</p>
+  </div>
+  <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:20px 24px;margin-bottom:20px;">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:10px;font-weight:600;">🎧 Commute Summary — Read Aloud</div>
+    <p style="margin:0;font-size:14px;color:#333;line-height:1.8;">${commuteScript}</p>
+  </div>
+  ${utilitySections}
+  <p style="text-align:center;font-size:11px;color:#bbb;margin-top:20px;">Automated briefing · ${dateStr} · Powered by Claude</p>
+</div>
+</body></html>`;
+
+  try {
+    const resp = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject: `⚡ Utility Briefing — ${dateStr}`,
+        html: htmlEmail,
+        text: commuteScript,
+      }),
+    });
+
+    const result = await resp.json();
+    if (result.ok) {
+      noteEl.textContent = `✓ Briefing sent to ${email}`;
+      noteEl.style.color = '#2a6b2a';
+    } else {
+      // Fallback: open mailto with commute script only
+      const sub = encodeURIComponent(`Utility Briefing — ${dateStr}`);
+      const bod = encodeURIComponent(commuteScript);
+      window.open(`mailto:${email}?subject=${sub}&body=${bod}`);
+      noteEl.textContent = `Email client opened — paste into message if needed`;
+    }
+  } catch(err) {
+    noteEl.textContent = `Error: ${err.message}`;
+  }
 }
 </script>
 </body>
