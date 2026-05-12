@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
   :root {
     --ink: #0f0f0d;
     --paper: #f5f2eb;
@@ -18,9 +18,9 @@
     --border: rgba(15,15,13,0.12);
     --card-bg: #fffdf7;
   }
- 
+
   html { font-size: 16px; }
- 
+
   body {
     font-family: 'DM Mono', monospace;
     background: var(--paper);
@@ -28,7 +28,7 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
- 
+
   /* Grid paper texture */
   body::before {
     content: '';
@@ -41,7 +41,7 @@
     pointer-events: none;
     z-index: 0;
   }
- 
+
   .site-wrap {
     position: relative;
     z-index: 1;
@@ -49,7 +49,7 @@
     margin: 0 auto;
     padding: 0 24px;
   }
- 
+
   /* ── HEADER ── */
   header {
     display: flex;
@@ -58,9 +58,9 @@
     padding: 40px 0 32px;
     border-bottom: 1px solid var(--border);
   }
- 
+
   .masthead { }
- 
+
   .masthead-eyebrow {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
@@ -70,7 +70,7 @@
     color: var(--accent);
     margin-bottom: 8px;
   }
- 
+
   .masthead-title {
     font-family: 'DM Serif Display', serif;
     font-size: clamp(36px, 6vw, 60px);
@@ -78,37 +78,37 @@
     letter-spacing: -0.02em;
     color: var(--ink);
   }
- 
+
   .masthead-title em {
     font-style: italic;
     color: var(--accent);
   }
- 
+
   .masthead-sub {
     font-size: 11px;
     color: var(--muted);
     margin-top: 10px;
     letter-spacing: 0.05em;
   }
- 
+
   .date-block {
     text-align: right;
     padding-top: 4px;
   }
- 
+
   .date-block .day {
     font-family: 'DM Serif Display', serif;
     font-size: 13px;
     color: var(--muted);
   }
- 
+
   .date-block .date-num {
     font-family: 'DM Serif Display', serif;
     font-size: 42px;
     line-height: 1;
     color: var(--ink);
   }
- 
+
   .date-block .month {
     font-size: 10px;
     letter-spacing: 0.14em;
@@ -116,21 +116,21 @@
     color: var(--muted);
     margin-top: 2px;
   }
- 
+
   /* ── UTILITY TICKER ── */
   .ticker-wrap {
     overflow: hidden;
     border-bottom: 1px solid var(--border);
     padding: 10px 0;
   }
- 
+
   .ticker {
     display: flex;
     gap: 48px;
     animation: scroll-ticker 18s linear infinite;
     white-space: nowrap;
   }
- 
+
   .ticker-item {
     font-size: 10px;
     letter-spacing: 0.12em;
@@ -138,14 +138,14 @@
     color: var(--muted);
     flex-shrink: 0;
   }
- 
+
   .ticker-item span { color: var(--accent2); margin-left: 6px; }
- 
+
   @keyframes scroll-ticker {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
   }
- 
+
   .setup-label {
     font-size: 10px;
     letter-spacing: 0.18em;
@@ -153,14 +153,14 @@
     color: var(--accent);
     margin-bottom: 12px;
   }
- 
+
   .setup-title {
     font-family: 'DM Serif Display', serif;
     font-size: 24px;
     color: var(--ink);
     margin-bottom: 8px;
   }
- 
+
   .setup-desc {
     font-size: 12px;
     color: var(--muted);
@@ -169,13 +169,13 @@
     max-width: 520px;
     letter-spacing: 0.02em;
   }
- 
+
   .setup-desc a {
     color: var(--accent2);
     text-decoration: none;
     border-bottom: 1px solid var(--accent2);
   }
- 
+
   .key-input-row {
     display: flex;
     align-items: stretch;
@@ -184,7 +184,7 @@
     max-width: 540px;
     overflow: hidden;
   }
- 
+
   .key-prefix {
     font-size: 11px;
     letter-spacing: 0.04em;
@@ -196,7 +196,7 @@
     display: flex;
     align-items: center;
   }
- 
+
   #api-key-input {
     flex: 1;
     font-family: 'DM Mono', monospace;
@@ -209,9 +209,9 @@
     outline: none;
     min-width: 0;
   }
- 
+
   #api-key-input::placeholder { color: var(--muted); letter-spacing: 0.04em; }
- 
+
   .btn-save-key {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
@@ -225,19 +225,19 @@
     transition: background 0.2s;
     white-space: nowrap;
   }
- 
+
   .btn-save-key:hover { background: var(--accent); }
- 
+
   .key-status {
     font-size: 10px;
     letter-spacing: 0.08em;
     margin-top: 10px;
     height: 16px;
   }
- 
+
   .key-status.ok { color: #2a6b2a; }
   .key-status.err { color: var(--accent); }
- 
+
   /* Connected state banner */
   #key-connected-bar {
     display: none;
@@ -248,7 +248,7 @@
     background: var(--card-bg);
     margin-bottom: 32px;
   }
- 
+
   .key-connected-left {
     display: flex;
     align-items: center;
@@ -257,7 +257,7 @@
     letter-spacing: 0.04em;
     color: var(--muted);
   }
- 
+
   .key-dot {
     width: 7px;
     height: 7px;
@@ -265,7 +265,7 @@
     background: #2a6b2a;
     flex-shrink: 0;
   }
- 
+
   .btn-change-key {
     font-family: 'DM Mono', monospace;
     font-size: 9px;
@@ -278,9 +278,9 @@
     cursor: pointer;
     transition: all 0.2s;
   }
- 
+
   .btn-change-key:hover { border-color: var(--accent); color: var(--accent); }
- 
+
   /* ── HERO / LAUNCH SECTION ── */
   .hero {
     display: none; /* shown by JS once key is confirmed */
@@ -290,9 +290,9 @@
     gap: 48px;
     align-items: center;
   }
- 
+
   .hero-left { }
- 
+
   .hero-label {
     font-size: 10px;
     letter-spacing: 0.16em;
@@ -300,7 +300,7 @@
     color: var(--muted);
     margin-bottom: 16px;
   }
- 
+
   .hero-copy {
     font-family: 'DM Serif Display', serif;
     font-size: clamp(22px, 3.5vw, 30px);
@@ -308,16 +308,16 @@
     color: var(--ink);
     margin-bottom: 28px;
   }
- 
+
   .hero-copy em { font-style: italic; color: var(--accent); }
- 
+
   .partners-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-bottom: 40px;
   }
- 
+
   .partner-row {
     display: flex;
     align-items: center;
@@ -329,16 +329,16 @@
     transform: translateX(-12px);
     animation: slide-in 0.4s ease forwards;
   }
- 
+
   .partner-row:nth-child(1) { animation-delay: 0.1s; }
   .partner-row:nth-child(2) { animation-delay: 0.2s; }
   .partner-row:nth-child(3) { animation-delay: 0.3s; }
   .partner-row:nth-child(4) { animation-delay: 0.4s; }
- 
+
   @keyframes slide-in {
     to { opacity: 1; transform: translateX(0); }
   }
- 
+
   .partner-dot {
     width: 6px;
     height: 6px;
@@ -346,7 +346,7 @@
     background: var(--accent);
     flex-shrink: 0;
   }
- 
+
   /* ── LAUNCH BUTTON ── */
   .btn-launch {
     position: relative;
@@ -366,7 +366,7 @@
     transition: all 0.2s ease;
     overflow: hidden;
   }
- 
+
   .btn-launch::before {
     content: '';
     position: absolute;
@@ -376,23 +376,23 @@
     transition: transform 0.3s ease;
     z-index: 0;
   }
- 
+
   .btn-launch:hover::before { transform: translateX(0); }
   .btn-launch:hover { transform: translateY(-2px); }
   .btn-launch:active { transform: translateY(0); }
   .btn-launch:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
- 
+
   .btn-launch span, .btn-icon { position: relative; z-index: 1; }
- 
+
   .btn-icon {
     width: 18px;
     height: 18px;
     position: relative;
     z-index: 1;
   }
- 
+
   .btn-icon svg { width: 18px; height: 18px; }
- 
+
   /* ── RIGHT PANEL ── */
   .hero-right {
     background: var(--card-bg);
@@ -400,7 +400,7 @@
     padding: 28px;
     position: relative;
   }
- 
+
   .hero-right::before {
     content: 'COVERAGE';
     position: absolute;
@@ -412,7 +412,7 @@
     color: var(--muted);
     padding: 0 8px;
   }
- 
+
   .coverage-item {
     display: flex;
     justify-content: space-between;
@@ -421,12 +421,12 @@
     border-bottom: 1px solid var(--border);
     font-size: 11px;
   }
- 
+
   .coverage-item:last-child { border-bottom: none; padding-bottom: 0; }
- 
+
   .coverage-name { letter-spacing: 0.04em; }
   .coverage-tags { display: flex; gap: 6px; }
- 
+
   .tag {
     font-size: 9px;
     letter-spacing: 0.1em;
@@ -435,16 +435,16 @@
     border: 1px solid var(--border);
     color: var(--muted);
   }
- 
+
   .tag.active { border-color: var(--accent2); color: var(--accent2); }
- 
+
   /* ── PROGRESS / STATUS ── */
   #status-area {
     display: none;
     padding: 32px 0;
     border-top: 1px solid var(--border);
   }
- 
+
   .status-label {
     font-size: 10px;
     letter-spacing: 0.16em;
@@ -452,13 +452,13 @@
     color: var(--muted);
     margin-bottom: 20px;
   }
- 
+
   .progress-steps {
     display: flex;
     flex-direction: column;
     gap: 0;
   }
- 
+
   .step {
     display: flex;
     align-items: flex-start;
@@ -467,9 +467,9 @@
     border-bottom: 1px solid var(--border);
     position: relative;
   }
- 
+
   .step:last-child { border-bottom: none; }
- 
+
   .step-indicator {
     width: 20px;
     height: 20px;
@@ -482,39 +482,39 @@
     margin-top: 1px;
     transition: all 0.3s ease;
   }
- 
+
   .step.done .step-indicator {
     background: var(--ink);
     border-color: var(--ink);
   }
- 
+
   .step.active .step-indicator {
     border-color: var(--accent);
     background: transparent;
   }
- 
+
   .step-dot {
     width: 6px;
     height: 6px;
     background: var(--muted);
     transition: all 0.3s ease;
   }
- 
+
   .step.done .step-dot {
     background: var(--paper);
     animation: none;
   }
- 
+
   .step.active .step-dot {
     background: var(--accent);
     animation: pulse-dot 1s ease-in-out infinite;
   }
- 
+
   @keyframes pulse-dot {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.3; transform: scale(0.6); }
   }
- 
+
   .step-text {
     font-size: 12px;
     letter-spacing: 0.03em;
@@ -522,44 +522,44 @@
     transition: color 0.3s ease;
     padding-top: 1px;
   }
- 
+
   .step.active .step-text { color: var(--ink); }
   .step.done .step-text { color: var(--muted); text-decoration: line-through; }
- 
+
   .step-time {
     margin-left: auto;
     font-size: 10px;
     color: var(--muted);
     padding-top: 2px;
   }
- 
+
   /* ── RESULTS AREA ── */
   #results-area {
     display: none;
     padding: 40px 0;
     border-top: 1px solid var(--border);
   }
- 
+
   .results-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     margin-bottom: 32px;
   }
- 
+
   .results-title {
     font-family: 'DM Serif Display', serif;
     font-size: 28px;
     color: var(--ink);
   }
- 
+
   .results-meta {
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
   }
- 
+
   /* Commute script */
   .commute-card {
     background: var(--ink);
@@ -568,7 +568,7 @@
     margin-bottom: 32px;
     position: relative;
   }
- 
+
   .commute-card::before {
     content: '▶ COMMUTE SCRIPT';
     display: block;
@@ -577,14 +577,14 @@
     color: var(--accent);
     margin-bottom: 16px;
   }
- 
+
   #commute-text {
     font-family: 'DM Serif Display', serif;
     font-size: 17px;
     line-height: 1.7;
     color: var(--paper);
   }
- 
+
   /* Utility cards */
   .utility-grid {
     display: grid;
@@ -594,12 +594,12 @@
     border: 1px solid var(--border);
     margin-bottom: 32px;
   }
- 
+
   .utility-card {
     background: var(--card-bg);
     padding: 24px;
   }
- 
+
   .utility-card-name {
     font-size: 9px;
     letter-spacing: 0.2em;
@@ -607,7 +607,7 @@
     color: var(--accent);
     margin-bottom: 8px;
   }
- 
+
   .utility-card-takeaway {
     font-family: 'DM Serif Display', serif;
     font-size: 15px;
@@ -615,11 +615,11 @@
     color: var(--ink);
     margin-bottom: 16px;
   }
- 
+
   .utility-news-list { display: flex; flex-direction: column; gap: 10px; }
- 
+
   .news-item { padding-top: 10px; border-top: 1px solid var(--border); }
- 
+
   .news-headline {
     font-size: 11px;
     font-weight: 500;
@@ -628,14 +628,14 @@
     line-height: 1.4;
     letter-spacing: 0.02em;
   }
- 
+
   .news-meta {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-bottom: 4px;
   }
- 
+
   .news-tag {
     font-size: 8px;
     letter-spacing: 0.12em;
@@ -643,16 +643,16 @@
     padding: 1px 5px;
     border: 1px solid;
   }
- 
+
   .news-tag.news { border-color: var(--accent2); color: var(--accent2); }
   .news-tag.financial { border-color: #2a6b2a; color: #2a6b2a; }
   .news-tag.regulatory { border-color: var(--accent); color: var(--accent); }
   .news-tag.ma { border-color: #7a3a8a; color: #7a3a8a; }
- 
+
   .news-source { font-size: 9px; color: var(--muted); letter-spacing: 0.06em; }
- 
+
   .news-summary { font-size: 11px; color: var(--muted); line-height: 1.55; }
- 
+
   /* Email send row */
   .send-row {
     display: flex;
@@ -661,7 +661,7 @@
     border: 1px solid var(--border);
     overflow: hidden;
   }
- 
+
   .send-row input {
     flex: 1;
     font-family: 'DM Mono', monospace;
@@ -673,9 +673,9 @@
     letter-spacing: 0.04em;
     outline: none;
   }
- 
+
   .send-row input::placeholder { color: var(--muted); }
- 
+
   .btn-send {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
@@ -689,16 +689,16 @@
     transition: background 0.2s ease;
     white-space: nowrap;
   }
- 
+
   .btn-send:hover { background: var(--accent); }
- 
+
   .send-note {
     font-size: 10px;
     color: var(--muted);
     letter-spacing: 0.06em;
     margin-top: 8px;
   }
- 
+
   /* Footer */
   footer {
     padding: 32px 0 48px;
@@ -707,33 +707,33 @@
     justify-content: space-between;
     align-items: center;
   }
- 
+
   .footer-copy {
     font-size: 10px;
     color: var(--muted);
     letter-spacing: 0.06em;
   }
- 
+
   .footer-tagline {
     font-family: 'DM Serif Display', serif;
     font-size: 13px;
     color: var(--muted);
     font-style: italic;
   }
- 
+
   /* Loading shimmer for skeleton */
   @keyframes shimmer {
     0% { background-position: -600px 0; }
     100% { background-position: 600px 0; }
   }
- 
+
   .shimmer {
     background: linear-gradient(90deg, var(--border) 25%, rgba(15,15,13,0.06) 50%, var(--border) 75%);
     background-size: 600px 100%;
     animation: shimmer 1.4s infinite;
     border-radius: 2px;
   }
- 
+
   /* Responsive */
   @media (max-width: 640px) {
     .hero { grid-template-columns: 1fr; }
@@ -746,9 +746,9 @@
 </style>
 </head>
 <body>
- 
+
 <div class="site-wrap">
- 
+
   <!-- HEADER -->
   <header>
     <div class="masthead">
@@ -762,7 +762,7 @@
       <div class="month" id="hdr-month"></div>
     </div>
   </header>
- 
+
   <!-- TICKER -->
   <div class="ticker-wrap">
     <div class="ticker">
@@ -783,7 +783,7 @@
       <div class="ticker-item">Regulatory Filings <span>CURRENT</span></div>
     </div>
   </div>
- 
+
   <!-- CONNECTED STATUS BAR -->
   <div id="key-connected-bar" style="display:flex;">
     <div class="key-connected-left">
@@ -791,7 +791,7 @@
       <span>Intelligence feed active · Ready</span>
     </div>
   </div>
- 
+
   <!-- HERO -->
   <section class="hero" id="hero-section">
     <div class="hero-left">
@@ -799,14 +799,14 @@
       <div class="hero-copy">
         Every day, a <em>fresh briefing</em> written for your commute — news, M&amp;A, financials &amp; regulatory updates.
       </div>
- 
+
       <div class="partners-list">
         <div class="partner-row"><div class="partner-dot"></div>Georgia Power</div>
         <div class="partner-row"><div class="partner-dot"></div>Duke Energy</div>
         <div class="partner-row"><div class="partner-dot"></div>Dominion Energy</div>
         <div class="partner-row"><div class="partner-dot"></div>San Diego Gas &amp; Electric</div>
       </div>
- 
+
       <button class="btn-launch" id="launchBtn" onclick="runBriefing()">
         <div class="btn-icon">
           <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -816,7 +816,7 @@
         <span id="btn-label">Run today's briefing</span>
       </button>
     </div>
- 
+
     <div class="hero-right">
       <div class="coverage-item">
         <div class="coverage-name">Georgia Power</div>
@@ -852,28 +852,28 @@
       </div>
     </div>
   </section>
- 
+
   <!-- STATUS / PROGRESS -->
   <div id="status-area">
     <div class="status-label">Fetching intelligence</div>
     <div class="progress-steps" id="progress-steps"></div>
   </div>
- 
+
   <!-- RESULTS -->
   <div id="results-area">
     <div class="results-header">
       <div class="results-title">Today's Briefing</div>
       <div class="results-meta" id="results-meta"></div>
     </div>
- 
+
     <!-- Commute script -->
     <div class="commute-card">
       <div id="commute-text">Loading commute script...</div>
     </div>
- 
+
     <!-- Utility cards -->
     <div class="utility-grid" id="utility-grid"></div>
- 
+
     <!-- Email send -->
     <div class="send-row">
       <input type="email" id="email-input" value="mathauer@gmail.com" placeholder="your@email.com" />
@@ -881,15 +881,15 @@
     </div>
     <div class="send-note" id="send-note">Briefing will be sent as a formatted HTML email</div>
   </div>
- 
+
   <!-- FOOTER -->
   <footer>
     <div class="footer-copy">Powered by Claude · Daily intelligence · Auto-delivered</div>
     <div class="footer-tagline">Your edge, every morning.</div>
   </footer>
- 
+
 </div>
- 
+
 <script>
 // ── Date header ────────────────────────────────────────────────────────
 const now = new Date();
@@ -899,18 +899,18 @@ function setText(id, val) { const el = document.getElementById(id); if (el) el.t
 setText('hdr-day',   days[now.getDay()]);
 setText('hdr-date',  String(now.getDate()).padStart(2, '0'));
 setText('hdr-month', months[now.getMonth()] + ' ' + now.getFullYear());
- 
+
 // ── API routed via Netlify proxy — no client-side key needed ──────────
 document.addEventListener('DOMContentLoaded', () => {
   const hero = document.getElementById('hero-section');
   if (hero) hero.style.display = 'grid';
 });
- 
+
 // ── State ──────────────────────────────────────────────────────────────
 const UTILITIES = ['Georgia Power', 'Duke Energy', 'Dominion Energy', 'San Diego Gas & Electric'];
 let briefingData = null;
 let commuteScript = '';
- 
+
 const STEPS = [
   { label: 'Searching Georgia Power news & financials', key: 'gp' },
   { label: 'Searching Duke Energy news & financials', key: 'de' },
@@ -918,7 +918,7 @@ const STEPS = [
   { label: 'Searching San Diego Gas & Electric updates', key: 'sdge' },
   { label: 'Writing your commute briefing script', key: 'script' },
 ];
- 
+
 // ── Utilities ──────────────────────────────────────────────────────────
 function renderSteps(activeIdx) {
   const container = document.getElementById('progress-steps');
@@ -932,14 +932,14 @@ function renderSteps(activeIdx) {
     </div>`;
   }).join('');
 }
- 
+
 async function fetchUtilityData(utility) {
   const prompt = `Search for the very latest news (today or this week) about ${utility} covering:
 1. Recent headlines and key developments
 2. M&A activity, acquisitions, mergers, partnerships
 3. Financial results, stock performance, earnings, rate changes
 4. Regulatory filings or approvals
- 
+
 Return ONLY a valid JSON object (no markdown, no backticks) with this exact structure:
 {
   "utility": "${utility}",
@@ -948,7 +948,7 @@ Return ONLY a valid JSON object (no markdown, no backticks) with this exact stru
     {"headline": "...", "category": "news|ma|financial|regulatory", "summary": "2-3 sentence summary", "source": "publication name"}
   ]
 }`;
- 
+
   const resp = await fetch('/.netlify/functions/proxy', {
     method: 'POST',
     headers: {
@@ -962,35 +962,35 @@ Return ONLY a valid JSON object (no markdown, no backticks) with this exact stru
       messages: [{ role: 'user', content: prompt }]
     })
   });
- 
+
   const data = await resp.json();
- 
+
   // Log raw response to browser console for debugging
   console.log(`[${utility}] raw response:`, JSON.stringify(data).slice(0, 500));
- 
+
   if (data.error) {
     console.error(`[${utility}] API error:`, data.error);
     return { utility, key_takeaway: `API error: ${data.error.message || data.error}`, news: [] };
   }
- 
+
   // Collect all text blocks across all content types
   const allText = (data.content || [])
     .filter(b => b.type === 'text')
     .map(b => b.text)
     .join('');
- 
+
   console.log(`[${utility}] text extracted (${allText.length} chars):`, allText.slice(0, 300));
- 
+
   // Strip markdown fences and find outermost JSON object
   const clean = allText.replace(/```json|```/gi, '').trim();
   const start = clean.indexOf('{');
   const end = clean.lastIndexOf('}');
- 
+
   if (start === -1 || end === -1) {
     console.warn(`[${utility}] No JSON found in response`);
     return { utility, key_takeaway: 'Could not parse response — no JSON found.', news: [] };
   }
- 
+
   try {
     const parsed = JSON.parse(clean.slice(start, end + 1));
     console.log(`[${utility}] parsed OK, news items:`, (parsed.news || []).length);
@@ -1000,14 +1000,14 @@ Return ONLY a valid JSON object (no markdown, no backticks) with this exact stru
     return { utility, key_takeaway: 'Could not parse response.', news: [] };
   }
 }
- 
+
 async function generateCommuteScript(allData) {
   const summary = allData.map(d =>
     `${d.utility}: ${d.key_takeaway}. Headlines: ${(d.news||[]).slice(0,2).map(n=>n.headline).join('; ')}.`
   ).join('\n\n');
- 
+
   const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
- 
+
   const resp = await fetch('/.netlify/functions/proxy', {
     method: 'POST',
     headers: {
@@ -1021,29 +1021,29 @@ async function generateCommuteScript(allData) {
         role: 'user',
         content: `Write a spoken commute briefing for a utility-industry executive. Conversational, confident, ~3 minutes when read aloud. Based on:
 ${summary}
- 
+
 Start: "Good morning. Here's your utility briefing for ${dateStr}."
 Cover each partner briefly. End with one overall takeaway sentence.
 No bullet points, no headers, natural spoken language.`
       }]
     })
   });
- 
+
   const data = await resp.json();
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
- 
+
 // ── Render results ──────────────────────────────────────────────────────
 function renderResults(allData, script) {
   // commute script
   const ct = document.getElementById('commute-text');
   if (ct) ct.textContent = script;
- 
+
   // meta
   const total = allData.reduce((n, d) => n + (d.news||[]).length, 0);
   const rm = document.getElementById('results-meta');
   if (rm) rm.textContent = `${total} stories · ${now.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'})}`;
- 
+
   // utility cards
   const grid = document.getElementById('utility-grid');
   grid.innerHTML = allData.map(d => {
@@ -1056,7 +1056,7 @@ function renderResults(allData, script) {
         </div>
         <div class="news-summary">${n.summary||''}</div>
       </div>`).join('');
- 
+
     return `<div class="utility-card">
       <div class="utility-card-name">${d.utility}</div>
       <div class="utility-card-takeaway">${d.key_takeaway}</div>
@@ -1064,58 +1064,59 @@ function renderResults(allData, script) {
     </div>`;
   }).join('');
 }
- 
+
 // ── Main run ────────────────────────────────────────────────────────────
 async function runBriefing() {
   const btn = document.getElementById('launchBtn');
   const label = document.getElementById('btn-label');
   btn.disabled = true;
   label.textContent = 'Fetching intelligence...';
- 
+
   const statusArea = document.getElementById('status-area');
   const resultsArea = document.getElementById('results-area');
   if (resultsArea) resultsArea.style.display = 'none';
   if (statusArea) { statusArea.style.display = 'block'; statusArea.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
- 
+
   try {
     const allData = [];
- 
+
     for (let i = 0; i < UTILITIES.length; i++) {
       renderSteps(i);
+      if (i > 0) await new Promise(r => setTimeout(r, 8000)); // wait 8s between calls to avoid rate limits
       const d = await fetchUtilityData(UTILITIES[i]);
       allData.push(d);
     }
- 
+
     renderSteps(4);
     const script = await generateCommuteScript(allData);
     renderSteps(5);
- 
+
     briefingData = allData;
     commuteScript = script;
- 
+
     if (statusArea) statusArea.style.display = 'none';
     if (resultsArea) { resultsArea.style.display = 'block'; resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     renderResults(allData, script);
- 
+
   } catch(err) {
     if (statusArea) statusArea.innerHTML =
       `<div style="color:var(--accent);font-size:12px;letter-spacing:.04em;">Error: ${err.message}<br><br>Check your API key and try again.</div>`;
   }
- 
+
   if (btn) btn.disabled = false;
   if (label) label.textContent = 'Refresh briefing';
 }
- 
+
 // ── Send email ──────────────────────────────────────────────────────────
 function sendBriefing() {
   const email = document.getElementById('email-input').value;
   if (!email || !briefingData) return;
- 
+
   // Build mailto with the commute script as body
   const subject = encodeURIComponent(`Utility Briefing — ${now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`);
   const body = encodeURIComponent(commuteScript + '\n\n---\nFull briefing powered by Claude.');
   window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
- 
+
   document.getElementById('send-note').textContent = `✓ Opening your email client to send to ${email}`;
 }
 </script>
