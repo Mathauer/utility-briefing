@@ -934,20 +934,8 @@ function renderSteps(activeIdx) {
 }
 
 async function fetchUtilityData(utility) {
-  const prompt = `Search for the very latest news (today or this week) about ${utility} covering:
-1. Recent headlines and key developments
-2. M&A activity, acquisitions, mergers, partnerships
-3. Financial results, stock performance, earnings, rate changes
-4. Regulatory filings or approvals
-
-Return ONLY a valid JSON object (no markdown, no backticks) with this exact structure:
-{
-  "utility": "${utility}",
-  "key_takeaway": "one sentence — the single most important thing happening right now",
-  "news": [
-    {"headline": "...", "category": "news|ma|financial|regulatory", "summary": "2-3 sentence summary", "source": "publication name"}
-  ]
-}`;
+  const prompt = `Find 3 recent news items about ${utility}. Return ONLY valid JSON, no markdown:
+{"utility":"${utility}","key_takeaway":"one sentence summary","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"publication"}]}`;
 
   const resp = await fetch('/.netlify/functions/proxy', {
     method: 'POST',
@@ -957,7 +945,7 @@ Return ONLY a valid JSON object (no markdown, no backticks) with this exact stru
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 1200,
+      max_tokens: 600,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }]
     })
@@ -1016,7 +1004,7 @@ async function generateCommuteScript(allData) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 700,
+      max_tokens: 400,
       messages: [{
         role: 'user',
         content: `Write a spoken commute briefing for a utility-industry executive. Conversational, confident, ~3 minutes when read aloud. Based on:
@@ -1082,7 +1070,7 @@ async function runBriefing() {
 
     for (let i = 0; i < UTILITIES.length; i++) {
       renderSteps(i);
-      if (i > 0) await new Promise(r => setTimeout(r, 8000)); // wait 8s between calls to avoid rate limits
+      if (i > 0) await new Promise(r => setTimeout(r, 15000)); // wait 15s between calls to stay under rate limit
       const d = await fetchUtilityData(UTILITIES[i]);
       allData.push(d);
     }
