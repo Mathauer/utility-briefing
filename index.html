@@ -1070,7 +1070,7 @@ async function runBriefing() {
 
     for (let i = 0; i < UTILITIES.length; i++) {
       renderSteps(i);
-      if (i > 0) await new Promise(r => setTimeout(r, 15000)); // wait 15s between calls to stay under rate limit
+      if (i > 0) await new Promise(r => setTimeout(r, 120000)); // wait 120s between calls to stay under rate limit
       const d = await fetchUtilityData(UTILITIES[i]);
       allData.push(d);
     }
