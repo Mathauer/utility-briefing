@@ -5,118 +5,112 @@ const RECIPIENT_EMAIL = process.env.BRIEFING_EMAIL || 'mathauer@gmail.com';
 const GMAIL_USER      = process.env.GMAIL_USER;
 const GMAIL_APP_PASS  = process.env.GMAIL_APP_PASSWORD;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
+const NEWS_API_KEY    = process.env.NEWS_API_KEY || '';
 
-// ── Helper: call Anthropic with multi-turn web search support ────────────────
-async function callAnthropicWithSearch(messages, maxTokens = 2000) {
-  const payload = {
-    model: 'claude-sonnet-4-5',
-    max_tokens: maxTokens,
-    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-    messages,
-  };
+const UTILITIES = [
+  { name: 'Georgia Power',              query: 'Georgia Power utility' },
+  { name: 'Duke Energy',                query: 'Duke Energy utility' },
+  { name: 'Dominion Energy',            query: 'Dominion Energy utility' },
+  { name: 'San Diego Gas & Electric',   query: 'San Diego Gas Electric SDG&E' },
+];
 
-  let data = await callAnthropic(payload, true);
-  console.log('Initial stop_reason:', data.stop_reason);
+// ── Fetch headlines from NewsAPI (free tier) ───────────────────────────────────
+async function fetchNewsHeadlines(query) {
+  if (!NEWS_API_KEY) return [];
+  try {
+    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=3&language=en&apiKey=${NEWS_API_KEY}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    return (data.articles || []).map(a => ({
+      headline: a.title,
+      source: a.source?.name || '',
+      url: a.url,
+    }));
+  } catch(e) {
+    console.error('NewsAPI error:', e.message);
+    return [];
+  }
+}
 
-  // Loop through tool_use rounds until we get a final text response
-  let rounds = 0;
-  while (data.stop_reason === 'tool_use' && rounds < 8) {
-    rounds++;
-    console.log(`Tool use round ${rounds}...`);
+// ── Ask Claude to write briefing using live headlines ──────────────────────────
+async function generateBriefing(headlinesByUtility, dateStr) {
+  // Build a context block of raw headlines for Claude to work from
+  const context = UTILITIES.map(u => {
+    const headlines = headlinesByUtility[u.name] || [];
+    const headlineText = headlines.length
+      ? headlines.map(h => `- ${h.headline} (${h.source})`).join('\n')
+      : '- No headlines available today';
+    return `${u.name}:\n${headlineText}`;
+  }).join('\n\n');
 
-    const toolResults = (data.content || [])
-      .filter(b => b.type === 'tool_use')
-      .map(b => ({
-        type: 'tool_result',
-        tool_use_id: b.id,
-        content: JSON.stringify(b.input || {}),
-      }));
+  console.log('Sending to Claude for analysis...');
 
-    if (toolResults.length === 0) break;
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1500,
+      messages: [{
+        role: 'user',
+        content: `You are preparing a daily intelligence briefing for an executive who works with these utility partners: Georgia Power, Duke Energy, Dominion Energy, and San Diego Gas & Electric.
 
-    payload.messages = [
-      ...messages,
-      { role: 'assistant', content: data.content },
-      { role: 'user', content: toolResults },
-    ];
+Here are today's news headlines for each utility:
 
-    data = await callAnthropic(payload, true);
-    console.log(`Round ${rounds} stop_reason:`, data.stop_reason);
+${context}
+
+Please do two things:
+
+1. For each utility, write a JSON summary with a key_takeaway and 2-3 news items with analysis. Categories: news, ma, financial, regulatory.
+
+2. Write a spoken commute briefing script (~3 minutes read aloud). Start with "Good morning. Here's your utility briefing for ${dateStr}." Natural spoken language, no bullet points.
+
+Return ONLY valid JSON in this exact format, no markdown:
+{
+  "utilities": [
+    {"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news","summary":"1-2 sentence analysis","source":"..."}]},
+    {"utility":"Duke Energy","key_takeaway":"...","news":[...]},
+    {"utility":"Dominion Energy","key_takeaway":"...","news":[...]},
+    {"utility":"San Diego Gas & Electric","key_takeaway":"...","news":[...]}
+  ],
+  "commute_script": "Good morning. Here's your utility briefing for ${dateStr}. ..."
+}`,
+      }],
+    }),
+  });
+
+  const data = await resp.json();
+  if (data.error) {
+    console.error('Claude error:', JSON.stringify(data.error));
+    return null;
   }
 
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  console.log('Final text length:', text.length, 'chars');
-  return text;
-}
-
-// ── Helper: raw Anthropic call ────────────────────────────────────────────────
-async function callAnthropic(payload, useSearch = false) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': ANTHROPIC_KEY,
-    'anthropic-version': '2023-06-01',
-  };
-  if (useSearch) headers['anthropic-beta'] = 'web-search-2025-03-05';
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const data = await resp.json();
-  if (data.error) console.error('Anthropic error:', JSON.stringify(data.error));
-  return data;
-}
-
-// ── Single API call for all 4 utilities ───────────────────────────────────────
-async function fetchAllUtilities() {
-  console.log('Fetching all utilities...');
-  const text = await callAnthropicWithSearch([{
-    role: 'user',
-    content: `Search for the latest news this week for these 4 utility companies: Georgia Power, Duke Energy, Dominion Energy, San Diego Gas & Electric. For each find 2-3 news items covering news, M&A, financial results, and regulatory updates. Return ONLY valid JSON, no markdown:
-{"utilities":[
-  {"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]},
-  {"utility":"Duke Energy","key_takeaway":"one sentence","news":[...]},
-  {"utility":"Dominion Energy","key_takeaway":"one sentence","news":[...]},
-  {"utility":"San Diego Gas & Electric","key_takeaway":"one sentence","news":[...]}
-]}`,
-  }]);
+  console.log('Claude response length:', text.length, 'chars');
 
   const clean = text.replace(/```json|```/gi, '').trim();
   const start = clean.indexOf('{'), end = clean.lastIndexOf('}');
   if (start === -1) {
-    console.error('No JSON found in response. Raw text:', text.slice(0, 300));
-    return [];
+    console.error('No JSON in Claude response. Sample:', text.slice(0, 200));
+    return null;
   }
   try {
-    const parsed = JSON.parse(clean.slice(start, end + 1));
-    console.log('Parsed utilities:', (parsed.utilities || []).length);
-    return parsed.utilities || [];
+    return JSON.parse(clean.slice(start, end + 1));
   } catch(e) {
-    console.error('JSON parse error:', e.message);
-    console.error('Raw text sample:', clean.slice(0, 300));
-    return [];
+    console.error('JSON parse error:', e.message, clean.slice(0, 200));
+    return null;
   }
-}
-
-// ── Generate commute script ───────────────────────────────────────────────────
-async function generateScript(allData, dateStr) {
-  const summary = allData.map(d =>
-    `${d.utility}: ${d.key_takeaway}. Headlines: ${(d.news || []).slice(0, 2).map(n => n.headline).join('; ')}.`
-  ).join('\n\n');
-
-  const data = await callAnthropic({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 400,
-    messages: [{
-      role: 'user',
-      content: `Write a spoken morning commute briefing for a utility executive. Conversational, ~3 min read aloud. Based on:\n${summary}\n\nStart: "Good morning. Here's your utility briefing for ${dateStr}." Cover each partner briefly. End with one overall takeaway. No bullet points, no headers.`,
-    }],
-  });
-  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
 // ── Build HTML email ──────────────────────────────────────────────────────────
-function buildEmail(allData, script, dateStr) {
+function buildEmail(result, dateStr) {
+  const allData = result.utilities || [];
+  const script  = result.commute_script || 'Commute script unavailable.';
+
   const catMap = {
     ma:         { bg: '#EEEDFE', color: '#3C3489', label: 'M&A' },
     financial:  { bg: '#E1F5EE', color: '#085041', label: 'Financial' },
@@ -179,15 +173,25 @@ const handler = async function() {
   });
 
   try {
-    console.log('Fetching all utilities in one call...');
-    const allData = await fetchAllUtilities();
-    console.log(`Got data for ${allData.length} utilities`);
+    // Step 1: Fetch headlines from NewsAPI for each utility
+    console.log('Fetching news headlines...');
+    const headlinesByUtility = {};
+    for (const u of UTILITIES) {
+      headlinesByUtility[u.name] = await fetchNewsHeadlines(u.query);
+      console.log(`${u.name}: ${headlinesByUtility[u.name].length} headlines`);
+    }
 
-    console.log('Generating commute script...');
-    const script = await generateScript(allData, dateStr);
+    // Step 2: Send headlines to Claude for analysis and script writing
+    const result = await generateBriefing(headlinesByUtility, dateStr);
 
-    console.log('Sending email...');
-    const { html, plain } = buildEmail(allData, script, dateStr);
+    if (!result) {
+      throw new Error('Failed to generate briefing content from Claude');
+    }
+
+    console.log(`Got ${(result.utilities || []).length} utility summaries`);
+
+    // Step 3: Build and send email
+    const { html, plain } = buildEmail(result, dateStr);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
