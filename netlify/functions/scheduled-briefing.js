@@ -1,6 +1,8 @@
 const https = require('https');
 
+// Support multiple recipients separated by comma or semicolon
 const RECIPIENT_EMAIL = process.env.BRIEFING_EMAIL || 'mathauer@gmail.com';
+const RECIPIENTS = RECIPIENT_EMAIL.split(/[,;]/).map(e => e.trim()).filter(e => e.includes('@'));
 const GMAIL_USER      = process.env.GMAIL_USER;
 const GMAIL_APP_PASS  = process.env.GMAIL_APP_PASSWORD;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
@@ -143,7 +145,7 @@ async function sendViaSmtp(subject, htmlBody, plainBody) {
     const boundary = 'b' + Date.now();
     const msgBody = [
       `From: Utility Briefing <${GMAIL_USER}>`,
-      `To: ${RECIPIENT_EMAIL}`,
+      `To: ${RECIPIENTS.join(", ")}`,
       `Subject: ${subject}`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
@@ -162,11 +164,14 @@ async function sendViaSmtp(subject, htmlBody, plainBody) {
     ].join('\r\n');
 
     // State machine: wait for a code then send next command
+    // Build one RCPT TO step per recipient
+    const rcptSteps = RECIPIENTS.map(addr => ({ wait: '250', send: `RCPT TO:<${addr}>\r\n` }));
+
     const conversation = [
       { wait: '220', send: `EHLO netlify.app\r\n` },
       { wait: '250', send: `AUTH PLAIN ${b64creds}\r\n` },
       { wait: '235', send: `MAIL FROM:<${GMAIL_USER}>\r\n` },
-      { wait: '250', send: `RCPT TO:<${RECIPIENT_EMAIL}>\r\n` },
+      ...rcptSteps,
       { wait: '250', send: `DATA\r\n` },
       { wait: '354', send: msgBody + '\r\n.\r\n' },
       { wait: '250', send: `QUIT\r\n` },
