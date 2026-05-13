@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { schedule } = require('@netlify/functions');
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 const UTILITIES = [
@@ -143,7 +144,7 @@ async function sendEmail(subject, html, plain) {
 }
 
 // ── Main scheduled handler ────────────────────────────────────────────────────
-exports.handler = async function() {
+const handler = async function() {
   console.log('Utility briefing starting...');
 
   if (!ANTHROPIC_KEY || !GMAIL_USER || !GMAIL_APP_PASS) {
@@ -183,3 +184,5 @@ exports.handler = async function() {
     return { statusCode: 500, body: err.message };
   }
 };
+
+exports.handler = schedule('30 10 * * 1-5', handler);
