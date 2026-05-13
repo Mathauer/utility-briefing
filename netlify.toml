@@ -1,6 +1,9 @@
 [build]
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "18"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -9,3 +12,4 @@
 
 [functions."scheduled-briefing"]
   schedule = "30 10 * * 1-5"
+  node_bundler = "nft"
