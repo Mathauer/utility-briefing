@@ -6,7 +6,7 @@ var GMAIL_USER     = process.env.GMAIL_USER;
 var GMAIL_APP_PASS = process.env.GMAIL_APP_PASSWORD;
 var BRIEFING_EMAIL = process.env.BRIEFING_EMAIL || 'mathauer@gmail.com';
 var RECIPIENTS     = BRIEFING_EMAIL.split(/[,;]/).map(function(e) { return e.trim(); }).filter(function(e) { return e.indexOf('@') !== -1; });
-var UTILITIES      = ['Georgia Power','Duke Energy','Dominion Energy','San Diego Gas & Electric'];
+var UTILITIES      = ['Georgia Power','Duke Energy','Dominion Energy','San Diego Gas & Electric','American Electric Power','Xcel Energy','Entergy','Southern California Gas'];
 
 function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
