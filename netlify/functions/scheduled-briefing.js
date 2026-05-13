@@ -1,59 +1,46 @@
 const nodemailer = require('nodemailer');
 const { schedule } = require('@netlify/functions');
 
-// ── Configuration ─────────────────────────────────────────────────────────────
-const UTILITIES = [
-  'Georgia Power',
-  'Duke Energy',
-  'Dominion Energy',
-  'San Diego Gas & Electric',
-];
-
 const RECIPIENT_EMAIL = process.env.BRIEFING_EMAIL || 'mathauer@gmail.com';
 const GMAIL_USER      = process.env.GMAIL_USER;
 const GMAIL_APP_PASS  = process.env.GMAIL_APP_PASSWORD;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
 
-// ── Helper: call Anthropic API ─────────────────────────────────────────────────
-async function callAnthropic(body, useWebSearch = false) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': ANTHROPIC_KEY,
-    'anthropic-version': '2023-06-01',
-  };
-  if (useWebSearch) headers['anthropic-beta'] = 'web-search-2025-03-05';
-
+// ── Single API call for all 4 utilities ───────────────────────────────────────
+async function fetchAllUtilities() {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'web-search-2025-03-05',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{
+        role: 'user',
+        content: `Search for the latest news this week for these 4 utility companies: Georgia Power, Duke Energy, Dominion Energy, San Diego Gas & Electric. For each find 2-3 news items covering news, M&A, financial results, and regulatory updates. Return ONLY valid JSON, no markdown:
+{"utilities":[
+  {"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]},
+  {"utility":"Duke Energy","key_takeaway":"one sentence","news":[...]},
+  {"utility":"Dominion Energy","key_takeaway":"one sentence","news":[...]},
+  {"utility":"San Diego Gas & Electric","key_takeaway":"one sentence","news":[...]}
+]}`,
+      }],
+    }),
   });
-  return resp.json();
-}
-
-// ── Helper: sleep ──────────────────────────────────────────────────────────────
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// ── Fetch news for one utility ────────────────────────────────────────────────
-async function fetchUtilityData(utility) {
-  const data = await callAnthropic({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 600,
-    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-    messages: [{
-      role: 'user',
-      content: `Find 3 recent news items about ${utility}. Return ONLY valid JSON, no markdown:
-{"utility":"${utility}","key_takeaway":"one sentence summary","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"publication"}]}`,
-    }],
-  }, true);
-
+  const data = await resp.json();
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   const clean = text.replace(/```json|```/gi, '').trim();
   const start = clean.indexOf('{'), end = clean.lastIndexOf('}');
   try {
-    return JSON.parse(clean.slice(start, end + 1));
+    const parsed = JSON.parse(clean.slice(start, end + 1));
+    return parsed.utilities || [];
   } catch {
-    return { utility, key_takeaway: 'Data temporarily unavailable.', news: [] };
+    return [];
   }
 }
 
@@ -63,15 +50,23 @@ async function generateScript(allData, dateStr) {
     `${d.utility}: ${d.key_takeaway}. Headlines: ${(d.news || []).slice(0, 2).map(n => n.headline).join('; ')}.`
   ).join('\n\n');
 
-  const data = await callAnthropic({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 400,
-    messages: [{
-      role: 'user',
-      content: `Write a spoken morning commute briefing for a utility executive. Conversational, ~3 min read aloud. Based on:\n${summary}\n\nStart: "Good morning. Here's your utility briefing for ${dateStr}." Cover each partner briefly. End with one overall takeaway. No bullet points, no headers.`,
-    }],
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `Write a spoken morning commute briefing for a utility executive. Conversational, ~3 min read aloud. Based on:\n${summary}\n\nStart: "Good morning. Here's your utility briefing for ${dateStr}." Cover each partner briefly. End with one overall takeaway. No bullet points, no headers.`,
+      }],
+    }),
   });
-
+  const data = await resp.json();
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
@@ -96,7 +91,6 @@ function buildEmail(allData, script, dateStr) {
         <p style="margin:0;font-size:13px;color:#555;line-height:1.6;">${n.summary || ''}</p>
       </div>`;
     }).join('');
-
     return `<div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:20px;margin-bottom:16px;">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#aaa;margin-bottom:4px;">${d.utility}</div>
       <p style="margin:0 0 14px;font-size:14px;color:#555;">${d.key_takeaway || ''}</p>
@@ -123,27 +117,10 @@ function buildEmail(allData, script, dateStr) {
 </body></html>`;
 
   const plain = `Utility Briefing — ${dateStr}\n\n${script}\n\n---\n${allData.map(d => `${d.utility}: ${d.key_takeaway}`).join('\n')}`;
-
   return { html, plain };
 }
 
-// ── Send email ────────────────────────────────────────────────────────────────
-async function sendEmail(subject, html, plain) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: GMAIL_USER, pass: GMAIL_APP_PASS },
-  });
-
-  await transporter.sendMail({
-    from: `Utility Briefing <${GMAIL_USER}>`,
-    to: RECIPIENT_EMAIL,
-    subject,
-    text: plain,
-    html,
-  });
-}
-
-// ── Main scheduled handler ────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 const handler = async function() {
   console.log('Utility briefing starting...');
 
@@ -157,24 +134,28 @@ const handler = async function() {
   });
 
   try {
-    // Fetch each utility with a 120-second gap to stay under rate limits
-    const allData = [];
-    for (let i = 0; i < UTILITIES.length; i++) {
-      console.log(`Fetching: ${UTILITIES[i]}...`);
-      if (i > 0) await sleep(120000);
-      const data = await fetchUtilityData(UTILITIES[i]);
-      allData.push(data);
-      console.log(`Done: ${UTILITIES[i]}`);
-    }
+    console.log('Fetching all utilities in one call...');
+    const allData = await fetchAllUtilities();
+    console.log(`Got data for ${allData.length} utilities`);
 
-    // Generate commute script
     console.log('Generating commute script...');
     const script = await generateScript(allData, dateStr);
 
-    // Build and send email
     console.log('Sending email...');
     const { html, plain } = buildEmail(allData, script, dateStr);
-    await sendEmail(`⚡ Utility Briefing — ${dateStr}`, html, plain);
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASS },
+    });
+
+    await transporter.sendMail({
+      from: `Utility Briefing <${GMAIL_USER}>`,
+      to: RECIPIENT_EMAIL,
+      subject: `⚡ Utility Briefing — ${dateStr}`,
+      text: plain,
+      html,
+    });
 
     console.log(`Briefing sent to ${RECIPIENT_EMAIL}`);
     return { statusCode: 200, body: 'Briefing sent successfully' };
