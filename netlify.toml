@@ -1,5 +1,6 @@
 [build]
   functions = "netlify/functions"
+  command = "npm install"
 
 [[headers]]
   for = "/*"
@@ -7,5 +8,5 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
 
-[functions."scheduled-briefing-bg"]
+[functions."scheduled-briefing"]
   schedule = "30 10 * * 1-5"
