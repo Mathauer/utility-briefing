@@ -136,18 +136,12 @@ async function sendEmail(subject, htmlBody, plainBody) {
 // Simplest working approach: use smtp.gmail.com via net module
 
 async function sendViaSmtp(subject, htmlBody, plainBody) {
-  const net = require('net');
   const tls = require('tls');
 
   return new Promise((resolve, reject) => {
-    const socket = tls.connect(465, 'smtp.gmail.com', { servername: 'smtp.gmail.com' }, () => {
-      console.log('TLS connected to Gmail SMTP');
-    });
-
-    const lines = [];
     const b64creds = Buffer.from(`\0${GMAIL_USER}\0${GMAIL_APP_PASS}`).toString('base64');
     const boundary = 'b' + Date.now();
-    const message = [
+    const msgBody = [
       `From: Utility Briefing <${GMAIL_USER}>`,
       `To: ${RECIPIENT_EMAIL}`,
       `Subject: ${subject}`,
@@ -163,44 +157,69 @@ async function sendViaSmtp(subject, htmlBody, plainBody) {
       'Content-Type: text/html; charset=UTF-8',
       '',
       htmlBody,
+      '',
       `--${boundary}--`,
-      '.',
     ].join('\r\n');
 
-    let step = 0;
-    const steps = [
-      { expect: '220', send: `EHLO netlify\r\n` },
-      { expect: '250', send: `AUTH PLAIN ${b64creds}\r\n` },
-      { expect: '235', send: `MAIL FROM:<${GMAIL_USER}>\r\n` },
-      { expect: '250', send: `RCPT TO:<${RECIPIENT_EMAIL}>\r\n` },
-      { expect: '250', send: `DATA\r\n` },
-      { expect: '354', send: message + '\r\n' },
-      { expect: '250', send: `QUIT\r\n` },
+    // State machine: wait for a code then send next command
+    const conversation = [
+      { wait: '220', send: `EHLO netlify.app\r\n` },
+      { wait: '250', send: `AUTH PLAIN ${b64creds}\r\n` },
+      { wait: '235', send: `MAIL FROM:<${GMAIL_USER}>\r\n` },
+      { wait: '250', send: `RCPT TO:<${RECIPIENT_EMAIL}>\r\n` },
+      { wait: '250', send: `DATA\r\n` },
+      { wait: '354', send: msgBody + '\r\n.\r\n' },
+      { wait: '250', send: `QUIT\r\n` },
+      { wait: '221', send: null },
     ];
 
-    socket.on('data', (data) => {
-      const response = data.toString();
-      console.log('SMTP:', response.trim());
-      if (step < steps.length && response.startsWith(steps[step].expect)) {
-        step++;
-        if (step < steps.length) {
-          socket.write(steps[step].send);
-        } else {
-          socket.end();
-          resolve({ ok: true });
-        }
-      } else if (!response.startsWith('2') && !response.startsWith('3') && step > 0) {
-        reject(new Error('SMTP error: ' + response));
-      }
+    let idx = 0;
+    let buf = '';
+
+    const socket = tls.connect({ host: 'smtp.gmail.com', port: 465, servername: 'smtp.gmail.com' });
+
+    socket.on('error', (err) => {
+      console.error('SMTP socket error:', err.message);
+      reject(err);
     });
 
-    socket.on('connect', () => { });
-    socket.on('error', reject);
-    socket.on('end', () => resolve({ ok: true }));
+    socket.on('end', () => {
+      console.log('SMTP connection closed');
+      resolve({ ok: true });
+    });
 
-    // Start after TLS handshake
-    socket.once('secureConnect', () => {
-      console.log('Secure connect established');
+    socket.on('data', (chunk) => {
+      buf += chunk.toString();
+      // Process complete lines
+      const lines = buf.split('\r\n');
+      buf = lines.pop(); // keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (!line) continue;
+        console.log('S:', line);
+
+        // Only act on final response lines (no dash continuation e.g. "250-...")
+        const code = line.slice(0, 3);
+        const isFinal = line[3] === ' ' || line.length === 3;
+
+        if (!isFinal) continue; // multi-line response, wait for final
+
+        if (idx < conversation.length && code === conversation[idx].wait) {
+          const next = conversation[idx].send;
+          idx++;
+          if (next) {
+            const preview = next.length > 60 ? next.slice(0, 60) + '...' : next.trim();
+            console.log('C:', preview);
+            socket.write(next);
+          } else {
+            // Done
+            socket.end();
+            resolve({ ok: true });
+          }
+        } else if (code.startsWith('4') || code.startsWith('5')) {
+          reject(new Error('SMTP error: ' + line));
+        }
+      }
     });
   });
 }
