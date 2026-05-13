@@ -6,40 +6,94 @@ const GMAIL_USER      = process.env.GMAIL_USER;
 const GMAIL_APP_PASS  = process.env.GMAIL_APP_PASSWORD;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
 
-// ── Single API call for all 4 utilities ───────────────────────────────────────
-async function fetchAllUtilities() {
+// ── Helper: call Anthropic with multi-turn web search support ────────────────
+async function callAnthropicWithSearch(messages, maxTokens = 2000) {
+  const payload = {
+    model: 'claude-sonnet-4-5',
+    max_tokens: maxTokens,
+    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+    messages,
+  };
+
+  let data = await callAnthropic(payload, true);
+  console.log('Initial stop_reason:', data.stop_reason);
+
+  // Loop through tool_use rounds until we get a final text response
+  let rounds = 0;
+  while (data.stop_reason === 'tool_use' && rounds < 8) {
+    rounds++;
+    console.log(`Tool use round ${rounds}...`);
+
+    const toolResults = (data.content || [])
+      .filter(b => b.type === 'tool_use')
+      .map(b => ({
+        type: 'tool_result',
+        tool_use_id: b.id,
+        content: JSON.stringify(b.input || {}),
+      }));
+
+    if (toolResults.length === 0) break;
+
+    payload.messages = [
+      ...messages,
+      { role: 'assistant', content: data.content },
+      { role: 'user', content: toolResults },
+    ];
+
+    data = await callAnthropic(payload, true);
+    console.log(`Round ${rounds} stop_reason:`, data.stop_reason);
+  }
+
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  console.log('Final text length:', text.length, 'chars');
+  return text;
+}
+
+// ── Helper: raw Anthropic call ────────────────────────────────────────────────
+async function callAnthropic(payload, useSearch = false) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': ANTHROPIC_KEY,
+    'anthropic-version': '2023-06-01',
+  };
+  if (useSearch) headers['anthropic-beta'] = 'web-search-2025-03-05';
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'web-search-2025-03-05',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages: [{
-        role: 'user',
-        content: `Search for the latest news this week for these 4 utility companies: Georgia Power, Duke Energy, Dominion Energy, San Diego Gas & Electric. For each find 2-3 news items covering news, M&A, financial results, and regulatory updates. Return ONLY valid JSON, no markdown:
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  if (data.error) console.error('Anthropic error:', JSON.stringify(data.error));
+  return data;
+}
+
+// ── Single API call for all 4 utilities ───────────────────────────────────────
+async function fetchAllUtilities() {
+  console.log('Fetching all utilities...');
+  const text = await callAnthropicWithSearch([{
+    role: 'user',
+    content: `Search for the latest news this week for these 4 utility companies: Georgia Power, Duke Energy, Dominion Energy, San Diego Gas & Electric. For each find 2-3 news items covering news, M&A, financial results, and regulatory updates. Return ONLY valid JSON, no markdown:
 {"utilities":[
   {"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]},
   {"utility":"Duke Energy","key_takeaway":"one sentence","news":[...]},
   {"utility":"Dominion Energy","key_takeaway":"one sentence","news":[...]},
   {"utility":"San Diego Gas & Electric","key_takeaway":"one sentence","news":[...]}
 ]}`,
-      }],
-    }),
-  });
-  const data = await resp.json();
-  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  }]);
+
   const clean = text.replace(/```json|```/gi, '').trim();
   const start = clean.indexOf('{'), end = clean.lastIndexOf('}');
+  if (start === -1) {
+    console.error('No JSON found in response. Raw text:', text.slice(0, 300));
+    return [];
+  }
   try {
     const parsed = JSON.parse(clean.slice(start, end + 1));
+    console.log('Parsed utilities:', (parsed.utilities || []).length);
     return parsed.utilities || [];
-  } catch {
+  } catch(e) {
+    console.error('JSON parse error:', e.message);
+    console.error('Raw text sample:', clean.slice(0, 300));
     return [];
   }
 }
@@ -50,23 +104,14 @@ async function generateScript(allData, dateStr) {
     `${d.utility}: ${d.key_takeaway}. Headlines: ${(d.news || []).slice(0, 2).map(n => n.headline).join('; ')}.`
   ).join('\n\n');
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 400,
-      messages: [{
-        role: 'user',
-        content: `Write a spoken morning commute briefing for a utility executive. Conversational, ~3 min read aloud. Based on:\n${summary}\n\nStart: "Good morning. Here's your utility briefing for ${dateStr}." Cover each partner briefly. End with one overall takeaway. No bullet points, no headers.`,
-      }],
-    }),
+  const data = await callAnthropic({
+    model: 'claude-sonnet-4-5',
+    max_tokens: 400,
+    messages: [{
+      role: 'user',
+      content: `Write a spoken morning commute briefing for a utility executive. Conversational, ~3 min read aloud. Based on:\n${summary}\n\nStart: "Good morning. Here's your utility briefing for ${dateStr}." Cover each partner briefly. End with one overall takeaway. No bullet points, no headers.`,
+    }],
   });
-  const data = await resp.json();
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
