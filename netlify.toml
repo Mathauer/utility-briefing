@@ -1,12 +1,16 @@
+tlify toml · TXT
+Copy
+
 [build]
   functions = "netlify/functions"
-
+ 
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
-
+ 
 # Runs Mon-Fri at 6:30 AM Eastern (10:30 UTC)
-[functions."scheduled-briefing"]
+# Uses background function for 15-min timeout (vs 60s standard)
+[functions."scheduled-briefing-bg"]
   schedule = "30 10 * * 1-5"
