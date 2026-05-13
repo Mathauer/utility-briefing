@@ -754,7 +754,7 @@
     <div class="masthead">
       <div class="masthead-eyebrow">Intelligence Report</div>
       <div class="masthead-title">Utility<br><em>Briefing</em></div>
-      <div class="masthead-sub">Georgia Power · Duke Energy · Dominion Energy · SDG&amp;E</div>
+      <div class="masthead-sub">Georgia Power · Duke Energy · Dominion · SDG&amp;E · AEP · Xcel · Entergy · SoCal Gas</div>
     </div>
     <div class="date-block">
       <div class="day" id="hdr-day"></div>
@@ -770,6 +770,10 @@
       <div class="ticker-item">Duke Energy <span>NYSE: DUK</span></div>
       <div class="ticker-item">Dominion Energy <span>NYSE: D</span></div>
       <div class="ticker-item">San Diego Gas &amp; Electric <span>SRE</span></div>
+      <div class="ticker-item">American Electric Power <span>NYSE: AEP</span></div>
+      <div class="ticker-item">Xcel Energy <span>NASDAQ: XEL</span></div>
+      <div class="ticker-item">Entergy <span>NYSE: ETR</span></div>
+      <div class="ticker-item">Southern California Gas <span>SRE</span></div>
       <div class="ticker-item">News &amp; M&amp;A <span>DAILY</span></div>
       <div class="ticker-item">Financial Updates <span>LIVE</span></div>
       <div class="ticker-item">Regulatory Filings <span>CURRENT</span></div>
@@ -778,6 +782,10 @@
       <div class="ticker-item">Duke Energy <span>NYSE: DUK</span></div>
       <div class="ticker-item">Dominion Energy <span>NYSE: D</span></div>
       <div class="ticker-item">San Diego Gas &amp; Electric <span>SRE</span></div>
+      <div class="ticker-item">American Electric Power <span>NYSE: AEP</span></div>
+      <div class="ticker-item">Xcel Energy <span>NASDAQ: XEL</span></div>
+      <div class="ticker-item">Entergy <span>NYSE: ETR</span></div>
+      <div class="ticker-item">Southern California Gas <span>SRE</span></div>
       <div class="ticker-item">News &amp; M&amp;A <span>DAILY</span></div>
       <div class="ticker-item">Financial Updates <span>LIVE</span></div>
       <div class="ticker-item">Regulatory Filings <span>CURRENT</span></div>
@@ -805,6 +813,10 @@
         <div class="partner-row"><div class="partner-dot"></div>Duke Energy</div>
         <div class="partner-row"><div class="partner-dot"></div>Dominion Energy</div>
         <div class="partner-row"><div class="partner-dot"></div>San Diego Gas &amp; Electric</div>
+        <div class="partner-row"><div class="partner-dot"></div>American Electric Power</div>
+        <div class="partner-row"><div class="partner-dot"></div>Xcel Energy</div>
+        <div class="partner-row"><div class="partner-dot"></div>Entergy</div>
+        <div class="partner-row"><div class="partner-dot"></div>Southern California Gas</div>
       </div>
 
       <button class="btn-launch" id="launchBtn" onclick="runBriefing()">
@@ -820,35 +832,35 @@
     <div class="hero-right">
       <div class="coverage-item">
         <div class="coverage-name">Georgia Power</div>
-        <div class="coverage-tags">
-          <div class="tag active">News</div>
-          <div class="tag active">Financial</div>
-          <div class="tag active">Regulatory</div>
-        </div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">Financial</div><div class="tag active">Regulatory</div></div>
       </div>
       <div class="coverage-item">
         <div class="coverage-name">Duke Energy</div>
-        <div class="coverage-tags">
-          <div class="tag active">News</div>
-          <div class="tag active">M&amp;A</div>
-          <div class="tag active">Financial</div>
-        </div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">M&amp;A</div><div class="tag active">Financial</div></div>
       </div>
       <div class="coverage-item">
         <div class="coverage-name">Dominion Energy</div>
-        <div class="coverage-tags">
-          <div class="tag active">News</div>
-          <div class="tag active">Financial</div>
-          <div class="tag active">Regulatory</div>
-        </div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">Financial</div><div class="tag active">Regulatory</div></div>
       </div>
       <div class="coverage-item">
         <div class="coverage-name">SDG&amp;E</div>
-        <div class="coverage-tags">
-          <div class="tag active">News</div>
-          <div class="tag active">M&amp;A</div>
-          <div class="tag active">Regulatory</div>
-        </div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">M&amp;A</div><div class="tag active">Regulatory</div></div>
+      </div>
+      <div class="coverage-item">
+        <div class="coverage-name">American Electric Power</div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">Financial</div><div class="tag active">Regulatory</div></div>
+      </div>
+      <div class="coverage-item">
+        <div class="coverage-name">Xcel Energy</div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">Financial</div><div class="tag active">Regulatory</div></div>
+      </div>
+      <div class="coverage-item">
+        <div class="coverage-name">Entergy</div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">M&amp;A</div><div class="tag active">Financial</div></div>
+      </div>
+      <div class="coverage-item">
+        <div class="coverage-name">SoCal Gas</div>
+        <div class="coverage-tags"><div class="tag active">News</div><div class="tag active">Financial</div><div class="tag active">Regulatory</div></div>
       </div>
     </div>
   </section>
@@ -907,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── State ──────────────────────────────────────────────────────────────
-const UTILITIES = ['Georgia Power', 'Duke Energy', 'Dominion Energy', 'San Diego Gas & Electric'];
+const UTILITIES = ['Georgia Power', 'Duke Energy', 'Dominion Energy', 'San Diego Gas & Electric', 'American Electric Power', 'Xcel Energy', 'Entergy', 'Southern California Gas'];
 let briefingData = null;
 let commuteScript = '';
 
