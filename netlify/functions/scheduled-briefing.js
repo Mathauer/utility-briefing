@@ -178,11 +178,8 @@ exports.handler = async function(event) {
   console.log('START recipients='+RECIPIENTS.join(','));
   var dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   try {
-    var allData = [];
-    for (var i=0; i<UTILITIES.length; i++) {
-      if (i>0) { await sleep(5000); }
-      allData.push(await fetchUtility(UTILITIES[i]));
-    }
+    console.log('Fetching all utilities in parallel...');
+    var allData = await Promise.all(UTILITIES.map(function(u) { return fetchUtility(u); }));
     console.log('All utilities fetched. Generating script...');
     var script = await generateScript(allData, dateStr);
     var email  = buildEmail(allData, script, dateStr);
