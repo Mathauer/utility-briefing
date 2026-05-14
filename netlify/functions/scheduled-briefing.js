@@ -173,9 +173,28 @@ function sendEmail(subject, html, plain) {
   });
 }
 
+// ── Deduplication: track last run date to prevent duplicate sends ─────────────
+var lastRunDate = '';
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 exports.handler = async function(event) {
-  console.log('START recipients='+RECIPIENTS.join(','));
+  // Use today's date as a dedup key — only run once per calendar day
+  // Pass ?force=true in the URL to override (e.g. for manual testing)
+  var params  = new URLSearchParams((event.queryStringParameters || {}));
+  var forced  = params.get('force') === 'true';
+  var today   = new Date().toISOString().slice(0, 10); // e.g. "2026-05-14"
+
+  if (lastRunDate === today && !forced) {
+    console.log('Already ran today (' + today + ') — skipping. Use ?force=true to override.');
+    return { statusCode: 200, body: 'Already sent today. Add ?force=true to override.' };
+  }
+
+  if (forced) {
+    console.log('Force override — running regardless of dedup state.');
+  }
+  lastRunDate = today;
+
+  console.log('START date='+today+' recipients='+RECIPIENTS.join(','));
   var dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   try {
     console.log('Fetching all utilities in parallel...');
@@ -188,6 +207,8 @@ exports.handler = async function(event) {
     console.log('Done.');
     return { statusCode:200, body:'Briefing sent successfully' };
   } catch(err) {
+    // Reset on failure so it can retry
+    lastRunDate = '';
     console.error('FAILED: '+err.message);
     return { statusCode:500, body:err.message };
   }
