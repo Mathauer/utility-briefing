@@ -44,9 +44,12 @@ function parseJSON(text) {
 
 // ── Fetch one utility with web search ────────────────────────────────────────
 async function fetchUtility(utility) {
-  var prompt = 'Find 3 recent news items about ' + utility + '. Return ONLY valid JSON, no markdown: ' +
-    '{"utility":"' + utility + '","key_takeaway":"one sentence","news":[' +
-    '{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]}';
+  var today2 = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var prompt = 'Search for news about ' + utility + ' published in the last 48 hours (today is ' + today2 + '). ' +
+    'Focus ONLY on new developments — do not repeat ongoing stories unless there is a specific update today. ' +
+    'Find 3 fresh news items. Return ONLY valid JSON, no markdown: ' +
+    '{"utility":"' + utility + '","key_takeaway":"one sentence on the most important NEW development today","news":[' +
+    '{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences on what is NEW today","source":"...","date":"publication date"}]}';
   try {
     console.log('Fetching ' + utility);
     var data = await callAnthropic({
@@ -78,11 +81,12 @@ async function generateScript(allData, dateStr) {
   }).join('\n');
   var data = await callAnthropic({
     model:      'claude-sonnet-4-5',
-    max_tokens: 400,
+    max_tokens: 800,
     messages:   [{ role:'user', content:
-      'Write a 3-minute spoken commute briefing for a utility executive. ' +
+      'Write a 3-minute spoken commute briefing for a utility executive covering ALL utilities listed. ' +
       'Start: "Good morning. Here\'s your utility briefing for ' + dateStr + '." ' +
-      'Based on:\n' + summary + '\nNo bullet points. Natural spoken language. One overall takeaway at end.'
+      'No bullet points. Natural spoken language. COMPLETE the full script without cutting off. End with one overall takeaway. ' +
+      'Based on:\n' + summary + '\n'
     }],
   }, false);
   return extractText(data);
@@ -173,27 +177,24 @@ function sendEmail(subject, html, plain) {
   });
 }
 
-// ── Deduplication: track last run date to prevent duplicate sends ─────────────
-var lastRunDate = '';
-
 // ── Main ─────────────────────────────────────────────────────────────────────
 exports.handler = async function(event) {
-  // Use today's date as a dedup key — only run once per calendar day
-  // Pass ?force=true in the URL to override (e.g. for manual testing)
-  var params  = new URLSearchParams((event.queryStringParameters || {}));
-  var forced  = params.get('force') === 'true';
-  var today   = new Date().toISOString().slice(0, 10); // e.g. "2026-05-14"
+  var fs      = require('fs');
+  var params  = (event.queryStringParameters || {});
+  var forced  = params.force === 'true';
+  var today   = new Date().toISOString().slice(0, 10);
+  var lockFile = '/tmp/briefing_sent_' + today + '.lock';
 
-  if (lastRunDate === today && !forced) {
-    console.log('Already ran today (' + today + ') — skipping. Use ?force=true to override.');
+  // Check if already ran today using a /tmp lock file (persists within Netlify's execution context)
+  if (!forced && fs.existsSync(lockFile)) {
+    console.log('Already ran today (' + today + ') — skipping duplicate. Use ?force=true to override.');
     return { statusCode: 200, body: 'Already sent today. Add ?force=true to override.' };
   }
 
-  if (forced) {
-    console.log('Force override — running regardless of dedup state.');
-  }
-  lastRunDate = today;
+  // Write lock file immediately to block any concurrent invocations
+  fs.writeFileSync(lockFile, new Date().toISOString());
 
+  if (forced) { console.log('Force override active.'); }
   console.log('START date='+today+' recipients='+RECIPIENTS.join(','));
   var dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   try {
