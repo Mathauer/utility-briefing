@@ -64,8 +64,8 @@ async function generateBriefing(dateStr) {
   var prompt =
     'You are preparing a daily intelligence briefing dated ' + dateStr + ' for a utility industry executive.\n\n' +
     'For each of these utility companies: ' + utilList + '\n\n' +
-    'Provide the most recent and relevant news, M&A activity, financial updates, and regulatory developments ' +
-    'you are aware of. Focus on what is most current and important.\n\n' +
+    'Provide 2 concise news items per utility covering recent news, M&A, financials, or regulatory updates. ' +
+    'Provide exactly 1-2 news items per utility. Keep summaries to 1 sentence each.\n\n' +
     'Then write a 3-minute spoken commute script summarizing everything.\n\n' +
     'Return ONLY valid JSON in exactly this format, starting with { and no preamble:\n' +
     '{\n' +
@@ -83,7 +83,7 @@ async function generateBriefing(dateStr) {
     '}';
 
   console.log('Calling Claude for briefing...');
-  var data = await anthropicCall([{ role: 'user', content: prompt }], 3000);
+  var data = await anthropicCall([{ role: 'user', content: prompt }], 8000);
 
   if (data.error) {
     console.error('API error: ' + data.error.message);
