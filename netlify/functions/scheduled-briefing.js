@@ -22,8 +22,6 @@ var UTILITIES = [
   'Southern California Gas',
 ];
 
-function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
-
 // ── Single Anthropic HTTP call ────────────────────────────────────────────────
 function anthropicRequest(payload, useWebSearch) {
   return new Promise(function(resolve, reject) {
@@ -52,132 +50,81 @@ function anthropicRequest(payload, useWebSearch) {
   });
 }
 
-// ── Multi-turn Anthropic call — handles web search tool rounds ────────────────
-async function callAnthropicWithSearch(messages, maxTokens) {
+// ── Multi-turn web search call ────────────────────────────────────────────────
+async function callWithWebSearch(messages, maxTokens) {
   var payload = {
     model:      'claude-sonnet-4-5',
-    max_tokens: maxTokens || 600,
+    max_tokens: maxTokens || 2000,
     tools:      [{ type: 'web_search_20250305', name: 'web_search' }],
     messages:   messages,
   };
-
   var data   = await anthropicRequest(payload, true);
   var rounds = 0;
-
-  // Loop through tool_use rounds until we get final text
-  while (data.stop_reason === 'tool_use' && rounds < 8) {
+  while (data.stop_reason === 'tool_use' && rounds < 10) {
     rounds++;
-    console.log('Web search round ' + rounds + '...');
-
-    if (data.error) { break; }
-
-    // Build tool results from all tool_use blocks
+    console.log('Search round ' + rounds);
     var toolResults = (data.content || [])
       .filter(function(b) { return b.type === 'tool_use'; })
       .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(b.input || {}) }; });
-
     if (toolResults.length === 0) { break; }
-
-    // Continue conversation with tool results
     payload.messages = messages.concat([
       { role: 'assistant', content: data.content },
       { role: 'user',      content: toolResults  },
     ]);
-
     data = await anthropicRequest(payload, true);
   }
-
-  return data;
-}
-
-// ── Plain Anthropic call (no web search) ──────────────────────────────────────
-function callAnthropic(payload) {
-  return new Promise(function(resolve, reject) {
-    var bodyStr = JSON.stringify(payload);
-    var headers = {
-      'Content-Type':      'application/json',
-      'x-api-key':         ANTHROPIC_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Length':    Buffer.byteLength(bodyStr),
-    };
-    var req = https.request(
-      { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST', headers: headers },
-      function(res) {
-        var buf = '';
-        res.on('data', function(c) { buf += c; });
-        res.on('end', function() {
-          try { resolve(JSON.parse(buf)); }
-          catch(e) { reject(new Error('Parse error: ' + buf.slice(0, 200))); }
-        });
-      }
-    );
-    req.on('error', reject);
-    req.write(bodyStr);
-    req.end();
-  });
-}
-
-function extractText(data) {
   return (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
 }
 
-function parseJSON(text) {
-  var clean = text.replace(/```json|```/gi, '').trim();
-  var s = clean.indexOf('{');
-  var e = clean.lastIndexOf('}');
-  if (s === -1) { return null; }
-  try { return JSON.parse(clean.slice(s, e + 1)); } catch(e2) { return null; }
-}
-
-// ── Fetch one utility with multi-turn web search ──────────────────────────────
-async function fetchUtility(utility) {
-  var dateNow = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  var prompt  =
-    'Search for news about ' + utility + ' published in the last 48 hours (today is ' + dateNow + '). ' +
-    'Find 3 fresh news items covering news, M&A, financial results, or regulatory filings. ' +
-    'Return ONLY valid JSON, no markdown:\n' +
-    '{"utility":"' + utility + '","key_takeaway":"one sentence on the most important new development",' +
-    '"news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]}';
-  try {
-    console.log('Fetching: ' + utility);
-    var data = await callAnthropicWithSearch([{ role: 'user', content: prompt }], 600);
-
-    if (data.error) {
-      console.error(utility + ' API error: ' + data.error.message);
-      return { utility: utility, key_takeaway: 'Data unavailable.', news: [] };
-    }
-
-    var text   = extractText(data);
-    console.log(utility + ' text length: ' + text.length + ' stop_reason: ' + data.stop_reason);
-
-    var parsed = parseJSON(text);
-    var count  = parsed && parsed.news ? parsed.news.length : 0;
-    console.log(utility + ': ' + count + ' items');
-    return parsed || { utility: utility, key_takeaway: 'Could not parse.', news: [] };
-  } catch(err) {
-    console.error(utility + ' failed: ' + err.message);
-    return { utility: utility, key_takeaway: 'Data unavailable.', news: [] };
-  }
-}
-
-// ── Generate commute script ───────────────────────────────────────────────────
-async function generateScript(allData, dateStr) {
-  var summary = allData.map(function(d) {
-    return d.utility + ': ' + d.key_takeaway + '. ' +
-      (d.news || []).slice(0, 2).map(function(n) { return n.headline; }).join('; ');
-  }).join('\n');
-
-  var data = await callAnthropic({
+// ── Plain Anthropic call ──────────────────────────────────────────────────────
+async function callAnthropic(messages, maxTokens) {
+  var data = await anthropicRequest({
     model:      'claude-sonnet-4-5',
-    max_tokens: 800,
-    messages:   [{ role: 'user', content:
-      'Write a complete 3-minute spoken commute briefing for a utility executive covering ALL utilities listed. ' +
-      'Start with "Good morning. Here\'s your utility briefing for ' + dateStr + '." ' +
-      'No bullet points. Natural spoken language. Complete the full script without cutting off. ' +
-      'End with one overall takeaway. Based on:\n' + summary,
-    }],
-  });
-  return extractText(data);
+    max_tokens: maxTokens || 800,
+    messages:   messages,
+  }, false);
+  return (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+}
+
+// ── Fetch ALL utilities in ONE web search call ────────────────────────────────
+async function fetchAllUtilities() {
+  var dateNow  = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  var utilList = UTILITIES.map(function(u, i) { return (i + 1) + '. ' + u; }).join('\n');
+
+  var prompt =
+    'Today is ' + dateNow + '. Search for the latest news in the past 48 hours for each of these utility companies:\n' +
+    utilList + '\n\n' +
+    'For each company find 2-3 recent news items covering news, M&A, financials, or regulatory updates.\n' +
+    'Return ONLY a valid JSON array, no markdown, no extra text:\n' +
+    '[{"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news","summary":"1-2 sentences","source":"..."}]},' +
+    '{"utility":"Duke Energy","key_takeaway":"...","news":[...]},' +
+    '{"utility":"Dominion Energy","key_takeaway":"...","news":[...]},' +
+    '{"utility":"San Diego Gas & Electric","key_takeaway":"...","news":[...]},' +
+    '{"utility":"American Electric Power","key_takeaway":"...","news":[...]},' +
+    '{"utility":"Xcel Energy","key_takeaway":"...","news":[...]},' +
+    '{"utility":"Entergy","key_takeaway":"...","news":[...]},' +
+    '{"utility":"Southern California Gas","key_takeaway":"...","news":[...]}]';
+
+  console.log('Fetching all utilities in one call...');
+  var text = await callWithWebSearch([{ role: 'user', content: prompt }], 2000);
+  console.log('Response length: ' + text.length + ' chars');
+
+  // Parse JSON array
+  var clean = text.replace(/```json|```/gi, '').trim();
+  var s = clean.indexOf('[');
+  var e = clean.lastIndexOf(']');
+  if (s === -1) {
+    console.error('No JSON array found. Sample: ' + clean.slice(0, 200));
+    return UTILITIES.map(function(u) { return { utility: u, key_takeaway: 'Data unavailable.', news: [] }; });
+  }
+  try {
+    var parsed = JSON.parse(clean.slice(s, e + 1));
+    console.log('Parsed ' + parsed.length + ' utilities');
+    return parsed;
+  } catch(err) {
+    console.error('JSON parse error: ' + err.message + ' Sample: ' + clean.slice(0, 200));
+    return UTILITIES.map(function(u) { return { utility: u, key_takeaway: 'Could not parse.', news: [] }; });
+  }
 }
 
 // ── Build HTML email ──────────────────────────────────────────────────────────
@@ -185,7 +132,6 @@ function buildEmail(allData, script, dateStr) {
   var catBg    = { ma: '#EEEDFE', financial: '#E1F5EE', regulatory: '#FAEEDA', news: '#E6F1FB' };
   var catColor = { ma: '#3C3489', financial: '#085041', regulatory: '#633806', news: '#0C447C' };
   var catLabel = { ma: 'M&A',     financial: 'Financial', regulatory: 'Regulatory', news: 'News' };
-
   var sections = allData.map(function(d) {
     var rows = (d.news || []).map(function(n) {
       var c = n.category || 'news';
@@ -200,7 +146,6 @@ function buildEmail(allData, script, dateStr) {
       '<p style="margin:0 0 12px;font-size:14px;color:#555;">' + (d.key_takeaway || '') + '</p>' +
       (rows || '<p style="color:#aaa;font-size:13px;">No items.</p>') + '</div>';
   }).join('');
-
   var html =
     '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>' +
     '<body style="margin:0;padding:0;background:#f5f5f3;font-family:sans-serif;">' +
@@ -214,7 +159,6 @@ function buildEmail(allData, script, dateStr) {
     sections +
     '<p style="text-align:center;font-size:11px;color:#bbb;margin-top:20px;">Automated briefing - ' + dateStr + '</p>' +
     '</div></body></html>';
-
   var plain = 'Utility Briefing - ' + dateStr + '\n\n' + script + '\n\n' +
     allData.map(function(d) { return d.utility + ': ' + d.key_takeaway; }).join('\n');
   return { html: html, plain: plain };
@@ -275,9 +219,8 @@ exports.handler = async function(event) {
   var today    = new Date().toISOString().slice(0, 10);
   var lockFile = '/tmp/briefing_' + today + '.lock';
 
-  // Dedup check — skip if already ran today (unless forced)
   if (!forced && fs.existsSync(lockFile)) {
-    console.log('Already ran today - skipping. Use ?force=true to override.');
+    console.log('Already ran today - skipping.');
     return { statusCode: 200, body: 'Already sent today.' };
   }
   fs.writeFileSync(lockFile, new Date().toISOString());
@@ -287,28 +230,32 @@ exports.handler = async function(event) {
   var dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   try {
-    // Fetch utilities sequentially — avoids rate limits and 60s timeout
-    console.log('Fetching ' + UTILITIES.length + ' utilities sequentially...');
-    var allData = [];
-    for (var i = 0; i < UTILITIES.length; i++) {
-      var d = await fetchUtility(UTILITIES[i]);
-      allData.push(d);
-    }
-
+    // ONE call for all 8 utilities
+    var allData = await fetchAllUtilities();
     var successCount = allData.filter(function(d) { return d.news && d.news.length > 0; }).length;
     console.log('Utilities with content: ' + successCount + '/' + UTILITIES.length);
 
     if (successCount === 0) {
       try { fs.unlinkSync(lockFile); } catch(e) {}
-      console.error('No content retrieved — aborting send.');
       return { statusCode: 500, body: 'No content retrieved' };
     }
 
-    console.log('Generating commute script...');
-    var script = await generateScript(allData, dateStr);
-    var email  = buildEmail(allData, script, dateStr);
+    // ONE call for commute script
+    var summary = allData.map(function(d) {
+      return d.utility + ': ' + d.key_takeaway + '. ' +
+        (d.news || []).slice(0, 2).map(function(n) { return n.headline; }).join('; ');
+    }).join('\n');
 
-    console.log('Sending email to: ' + RECIPIENTS.join(', '));
+    console.log('Generating commute script...');
+    var script = await callAnthropic([{ role: 'user', content:
+      'Write a complete 3-minute spoken commute briefing for a utility executive covering ALL utilities listed. ' +
+      'Start with "Good morning. Here\'s your utility briefing for ' + dateStr + '." ' +
+      'No bullet points. Natural spoken language. Complete the full script without cutting off. ' +
+      'End with one overall takeaway. Based on:\n' + summary,
+    }], 800);
+
+    var email = buildEmail(allData, script, dateStr);
+    console.log('Sending email...');
     await sendEmail('Utility Briefing - ' + dateStr, email.html, email.plain);
     console.log('Done. ' + successCount + '/' + UTILITIES.length + ' utilities populated.');
     return { statusCode: 200, body: 'Briefing sent successfully' };
