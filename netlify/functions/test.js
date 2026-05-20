@@ -1,39 +1,25 @@
-const https = require('https');
-const tls   = require('tls');
+var https = require('https');
 
-const ANTHROPIC_KEY  = process.env.ANTHROPIC_API_KEY;
-const GMAIL_USER     = process.env.GMAIL_USER;
-const GMAIL_APP_PASS = process.env.GMAIL_APP_PASSWORD;
-const RECIPIENTS     = (process.env.BRIEFING_EMAIL || 'mathauer@gmail.com')
-                         .split(/[,;]/).map(e => e.trim()).filter(e => e.includes('@'));
+var ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 
-const UTILITIES = [
-  'Georgia Power',
-  'Duke Energy', 
-  'Dominion Energy',
-  'San Diego Gas & Electric',
-];
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-function anthropicCall(payload, useWebSearch) {
-  return new Promise((resolve, reject) => {
-    const bodyStr = JSON.stringify(payload);
-    const headers = {
+function anthropicRequest(payload, useWebSearch) {
+  return new Promise(function(resolve, reject) {
+    var bodyStr = JSON.stringify(payload);
+    var headers = {
       'Content-Type':      'application/json',
       'x-api-key':         ANTHROPIC_KEY,
       'anthropic-version': '2023-06-01',
       'Content-Length':    Buffer.byteLength(bodyStr),
     };
-    if (useWebSearch) headers['anthropic-beta'] = 'web-search-2025-03-05';
-    const req = https.request(
-      { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST', headers },
-      (res) => {
-        let buf = '';
-        res.on('data', c => buf += c);
-        res.on('end', () => {
+    if (useWebSearch) { headers['anthropic-beta'] = 'web-search-2025-03-05'; }
+    var req = https.request(
+      { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST', headers: headers },
+      function(res) {
+        var buf = '';
+        res.on('data', function(c) { buf += c; });
+        res.on('end', function() {
           try { resolve(JSON.parse(buf)); }
-          catch(e) { reject(new Error('Parse error: ' + buf.slice(0,100))); }
+          catch(e) { reject(new Error('Parse error: ' + buf.slice(0, 200))); }
         });
       }
     );
@@ -45,34 +31,43 @@ function anthropicCall(payload, useWebSearch) {
 
 exports.handler = async function(event) {
   try {
-    console.log('Step 1: basic setup ok');
-
-    // Test one small Anthropic call with web search
-    const data = await anthropicCall({
+    // Simple test — ask for ONE utility in JSON format, no web search
+    var data = await anthropicRequest({
       model:      'claude-sonnet-4-5',
-      max_tokens: 100,
-      tools:      [{ type: 'web_search_20250305', name: 'web_search' }],
-      messages:   [{ role: 'user', content: 'What is 2+2? Reply with just the number.' }],
-    }, true);
+      max_tokens: 400,
+      messages:   [{ role: 'user', content:
+        'Return ONLY a valid JSON array, no markdown, no extra text:\n' +
+        '[{"utility":"Georgia Power","key_takeaway":"test","news":[{"headline":"test headline","category":"news","summary":"test summary","source":"test"}]}]'
+      }],
+    }, false);
 
-    console.log('Step 2: anthropic call complete, stop_reason:', data.stop_reason);
-    console.log('Step 2: error:', data.error ? data.error.message : 'none');
+    var text = (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
 
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    console.log('Step 3: text extracted:', text.slice(0, 100));
+    // Try parsing
+    var clean = text.replace(/```json|```/gi, '').trim();
+    var s = clean.indexOf('[');
+    var e = clean.lastIndexOf(']');
+    var parsed = null;
+    var parseError = null;
+    if (s !== -1) {
+      try { parsed = JSON.parse(clean.slice(s, e + 1)); }
+      catch(err) { parseError = err.message; }
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        ok: true,
-        stop_reason: data.stop_reason,
-        error: data.error || null,
-        text: text || null,
-        content_types: (data.content || []).map(b => b.type),
-      })
+        stop_reason:  data.stop_reason,
+        error:        data.error || null,
+        text_length:  text.length,
+        text_sample:  text.slice(0, 300),
+        found_array:  s !== -1,
+        parse_ok:     parsed !== null,
+        parse_error:  parseError,
+        item_count:   parsed ? parsed.length : 0,
+      }, null, 2),
     };
   } catch(err) {
-    console.error('Crashed:', err.message);
-    return { statusCode: 200, body: JSON.stringify({ ok: false, error: err.message }) };
+    return { statusCode: 200, body: JSON.stringify({ crashed: err.message }) };
   }
 };
