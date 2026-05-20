@@ -56,18 +56,17 @@ function extractText(data) {
 
 // ── Fetch ALL utilities in ONE call ───────────────────────────────────────────
 async function fetchAllUtilities(dateStr) {
-  var utilList = UTILITIES.map(function(u, i) { return (i+1) + '. ' + u; }).join('\n');
   var prompt =
-    'Today is ' + dateStr + '. Search for the latest news in the past 48 hours for each of these utility companies:\n' +
-    utilList + '\n\n' +
-    'For each company find 2-3 recent news items (news, M&A, financial, regulatory).\n' +
-    'Return ONLY a valid JSON array, no markdown:\n' +
-    '[{"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"1-2 sentences","source":"..."}]},...]';
+    'Search for recent news about these utility companies: ' + UTILITIES.join(', ') + '. ' +
+    'For each find 2 news items from the past week. ' +
+    'YOUR RESPONSE MUST START WITH [ AND END WITH ] — output the JSON array immediately, zero preamble. ' +
+    'No explanations, no markdown, no "let me search". Just the raw JSON array: ' +
+    '[{"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news","summary":"1-2 sentences","source":"..."}]},...]';
 
   console.log('Fetching all utilities...');
   var data = await anthropicCall({
     model:      'claude-sonnet-4-5',
-    max_tokens: 2000,
+    max_tokens: 4000,
     tools:      [{ type: 'web_search_20250305', name: 'web_search' }],
     messages:   [{ role: 'user', content: prompt }],
   }, true);
