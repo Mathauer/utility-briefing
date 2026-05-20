@@ -198,18 +198,41 @@ exports.handler = async function(event) {
   console.log('START date='+today+' recipients='+RECIPIENTS.join(','));
   var dateStr = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   try {
-    console.log('Fetching all utilities in parallel...');
-    var allData = await Promise.all(UTILITIES.map(function(u) { return fetchUtility(u); }));
+    // Fetch in batches of 2 with 8s between batches to stay under rate limit
+    console.log('Fetching utilities in batches...');
+    var allData = [];
+    var batchSize = 2;
+    for (var b = 0; b < UTILITIES.length; b += batchSize) {
+      var batch = UTILITIES.slice(b, b + batchSize);
+      console.log('Batch ' + (Math.floor(b/batchSize)+1) + ': ' + batch.join(', '));
+      var batchResults = await Promise.all(batch.map(function(u) { return fetchUtility(u); }));
+      allData = allData.concat(batchResults);
+      if (b + batchSize < UTILITIES.length) {
+        console.log('Waiting 8s before next batch...');
+        await sleep(8000);
+      }
+    }
     console.log('All utilities fetched. Generating script...');
     var script = await generateScript(allData, dateStr);
+    // Only send if we got real content — don't send blank emails
+    var successCount = allData.filter(function(d) { return d.news && d.news.length > 0; }).length;
+    console.log('Utilities with content: ' + successCount + '/' + UTILITIES.length);
+
+    if (successCount === 0) {
+      console.error('No content retrieved for any utility — aborting send.');
+      // Reset lock so it retries next invocation
+      try { require('fs').unlinkSync(lockFile); } catch(e) {}
+      return { statusCode: 500, body: 'No content retrieved — email not sent' };
+    }
+
     var email  = buildEmail(allData, script, dateStr);
     console.log('Sending email...');
     await sendEmail('Utility Briefing - '+dateStr, email.html, email.plain);
-    console.log('Done.');
+    console.log('Done. Sent with ' + successCount + '/' + UTILITIES.length + ' utilities populated.');
     return { statusCode:200, body:'Briefing sent successfully' };
   } catch(err) {
-    // Reset on failure so it can retry
-    lastRunDate = '';
+    // Delete lock file on failure so the next invocation can retry
+    try { require('fs').unlinkSync(lockFile); } catch(e) {}
     console.error('FAILED: '+err.message);
     return { statusCode:500, body:err.message };
   }
