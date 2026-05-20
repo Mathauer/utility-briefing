@@ -19,7 +19,7 @@ function anthropicRequest(payload, useWebSearch) {
         res.on('data', function(c) { buf += c; });
         res.on('end', function() {
           try { resolve(JSON.parse(buf)); }
-          catch(e) { reject(new Error('Parse error: ' + buf.slice(0, 200))); }
+          catch(e) { reject(new Error('Parse: ' + buf.slice(0, 200))); }
         });
       }
     );
@@ -31,39 +31,66 @@ function anthropicRequest(payload, useWebSearch) {
 
 exports.handler = async function(event) {
   try {
-    // Simple test — ask for ONE utility in JSON format, no web search
-    var data = await anthropicRequest({
+    // Step 1: web search call for just ONE utility
+    var messages = [{ role: 'user', content:
+      'Search for 1 recent news item about Georgia Power utility. ' +
+      'Return ONLY valid JSON, no markdown:\n' +
+      '[{"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news","summary":"1-2 sentences","source":"..."}]}]'
+    }];
+
+    var payload = {
       model:      'claude-sonnet-4-5',
-      max_tokens: 400,
-      messages:   [{ role: 'user', content:
-        'Return ONLY a valid JSON array, no markdown, no extra text:\n' +
-        '[{"utility":"Georgia Power","key_takeaway":"test","news":[{"headline":"test headline","category":"news","summary":"test summary","source":"test"}]}]'
-      }],
-    }, false);
+      max_tokens: 600,
+      tools:      [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages:   messages,
+    };
 
-    var text = (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+    var data = await anthropicRequest(payload, true);
+    var round1_stop = data.stop_reason;
+    var round1_types = (data.content || []).map(function(b) { return b.type; });
 
-    // Try parsing
-    var clean = text.replace(/```json|```/gi, '').trim();
+    // If tool_use, do one more round
+    var round2_stop = null;
+    var finalText = '';
+
+    if (data.stop_reason === 'tool_use') {
+      var toolResults = (data.content || [])
+        .filter(function(b) { return b.type === 'tool_use'; })
+        .map(function(b) { return { type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(b.input || {}) }; });
+
+      payload.messages = messages.concat([
+        { role: 'assistant', content: data.content },
+        { role: 'user',      content: toolResults  },
+      ]);
+
+      data = await anthropicRequest(payload, true);
+      round2_stop = data.stop_reason;
+    }
+
+    finalText = (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
+
+    // Try parse
+    var clean = finalText.replace(/```json|```/gi, '').trim();
     var s = clean.indexOf('[');
     var e = clean.lastIndexOf(']');
     var parsed = null;
-    var parseError = null;
+    var parseErr = null;
     if (s !== -1) {
       try { parsed = JSON.parse(clean.slice(s, e + 1)); }
-      catch(err) { parseError = err.message; }
+      catch(err) { parseErr = err.message; }
     }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        stop_reason:  data.stop_reason,
-        error:        data.error || null,
-        text_length:  text.length,
-        text_sample:  text.slice(0, 300),
+        round1_stop:  round1_stop,
+        round1_types: round1_types,
+        round2_stop:  round2_stop,
+        text_length:  finalText.length,
+        text_sample:  finalText.slice(0, 400),
         found_array:  s !== -1,
         parse_ok:     parsed !== null,
-        parse_error:  parseError,
+        parse_error:  parseErr,
         item_count:   parsed ? parsed.length : 0,
       }, null, 2),
     };
