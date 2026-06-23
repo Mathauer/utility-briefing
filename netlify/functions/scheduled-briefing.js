@@ -82,7 +82,7 @@ async function generateBriefing(dateStr) {
   // Call 2: commute script
   var summary = items.map(function(x) { return x.u + ': ' + x.t + '. ' + x.h; }).join(' ');
   var commutePrompt = 'Write a spoken commute briefing for ' + dateStr + '. Write a SEPARATE paragraph for each utility — start each paragraph with the utility name in bold using <b>Utility Name</b> format. Begin with: Good morning, here is your utility briefing for ' + dateStr + '. After all utilities, add a final Overall Takeaway paragraph. No bullet points. Based on: ' + summary;
-  var d2 = await anthropicCall([{ role: 'user', content: commutePrompt }], 600);
+  var d2 = await anthropicCall([{ role: 'user', content: commutePrompt }], 1200);
   var script = extractText(d2);
   console.log('Call 2: ' + script.length + ' chars');
 
