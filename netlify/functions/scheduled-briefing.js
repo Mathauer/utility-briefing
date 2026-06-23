@@ -81,7 +81,7 @@ async function generateBriefing(dateStr) {
 
   // Call 2: commute script
   var summary = items.map(function(x) { return x.u + ': ' + x.t + '. ' + x.h; }).join(' ');
-  var commutePrompt = 'Write a 2-minute spoken commute briefing. Start: Good morning, here is your utility briefing for ' + dateStr + '. Based on: ' + summary + ' End with one overall takeaway. No bullet points.';
+  var commutePrompt = 'Write a spoken commute briefing for ' + dateStr + '. Write a SEPARATE paragraph for each utility — start each paragraph with the utility name in bold using <b>Utility Name</b> format. Begin with: Good morning, here is your utility briefing for ' + dateStr + '. After all utilities, add a final Overall Takeaway paragraph. No bullet points. Based on: ' + summary;
   var d2 = await anthropicCall([{ role: 'user', content: commutePrompt }], 600);
   var script = extractText(d2);
   console.log('Call 2: ' + script.length + ' chars');
@@ -130,7 +130,7 @@ function buildEmail(result, dateStr) {
     '<p style="margin:0;font-size:13px;color:#aaa;">' + dateStr + '</p></div>' +
     '<div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:20px;margin-bottom:20px;">' +
     '<div style="font-size:10px;text-transform:uppercase;color:#aaa;margin-bottom:8px;">Commute Summary</div>' +
-    '<p style="margin:0;font-size:14px;color:#333;line-height:1.8;">' + script + '</p></div>' +
+    '<div style="font-size:14px;color:#333;line-height:1.8;">' + script.split('\n\n').map(function(p) { return p.trim() ? '<p style="margin:0 0 14px;">' + p.trim() + '</p>' : ''; }).join('') + '</div></div>' +
     sections +
     '<p style="text-align:center;font-size:11px;color:#bbb;margin-top:20px;">Automated briefing - ' + dateStr + '</p>' +
     '</div></body></html>';
