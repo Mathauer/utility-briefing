@@ -58,56 +58,44 @@ function extractText(data) {
   return (data.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text; }).join('');
 }
 
-// ── Generate full briefing in one call ────────────────────────────────────────
+// ── Generate briefing — two fast calls ───────────────────────────────────────
 async function generateBriefing(dateStr) {
-  var utilList = UTILITIES.join(', ');
-  var prompt =
-    'You are preparing a daily intelligence briefing dated ' + dateStr + ' for a utility industry executive.\n\n' +
-    'For each of these utility companies: ' + utilList + '\n\n' +
-    'Provide 2 concise news items per utility covering recent news, M&A, financials, or regulatory updates. ' +
-    'Provide exactly 1-2 news items per utility. Keep summaries to 1 sentence each.\n\n' +
-    'Then write a 3-minute spoken commute script summarizing everything.\n\n' +
-    'Return ONLY valid JSON in exactly this format, starting with { and no preamble:\n' +
-    '{\n' +
-    '  "utilities": [\n' +
-    '    {"utility":"Georgia Power","key_takeaway":"one sentence","news":[{"headline":"...","category":"news|ma|financial|regulatory","summary":"2-3 sentences","source":""}]},\n' +
-    '    {"utility":"Duke Energy","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"Dominion Energy","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"San Diego Gas & Electric","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"American Electric Power","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"Xcel Energy","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"Entergy","key_takeaway":"...","news":[...]},\n' +
-    '    {"utility":"Southern California Gas","key_takeaway":"...","news":[...]}\n' +
-    '  ],\n' +
-    '  "commute_script": "Good morning. Here\'s your utility briefing for ' + dateStr + '. [3 minute spoken summary covering all 8 utilities with one overall takeaway at the end.]"\n' +
-    '}';
+  // Call 1: short utility summaries
+  var prompt1 =
+    'For each of these utilities give ONE key headline and one-sentence takeaway from recent news. ' +
+    'Utilities: ' + UTILITIES.join(', ') + '. ' +
+    'Return ONLY this JSON array, no preamble, no markdown: ' +
+    '[{"u":"Georgia Power","t":"takeaway","h":"headline","c":"news"},{"u":"Duke Energy","t":"...","h":"...","c":"..."},...]';
 
-  console.log('Calling Claude for briefing...');
-  var data = await anthropicCall([{ role: 'user', content: prompt }], 8000);
+  console.log('Call 1: summaries...');
+  var d1 = await anthropicCall([{ role: 'user', content: prompt1 }], 1500);
+  if (d1.error) { console.error('Call 1 error: ' + d1.error.message); return null; }
 
-  if (data.error) {
-    console.error('API error: ' + data.error.message);
-    return null;
-  }
+  var t1 = extractText(d1);
+  console.log('Call 1: ' + t1.length + ' chars, stop: ' + d1.stop_reason);
+  var c1 = t1.replace(/```json|```/gi,'').trim();
+  var s1 = c1.indexOf('['), e1 = c1.lastIndexOf(']');
+  var items = [];
+  if (s1 !== -1) { try { items = JSON.parse(c1.slice(s1, e1+1)); } catch(e) { console.error('Call 1 parse: ' + e.message); } }
+  console.log('Call 1: ' + items.length + ' items parsed');
 
-  var text = extractText(data);
-  console.log('Response: ' + text.length + ' chars, stop_reason: ' + data.stop_reason);
+  // Call 2: commute script
+  var summary = items.map(function(x) { return x.u + ': ' + x.t + '. ' + x.h; }).join(' ');
+  var commutePrompt = 'Write a 2-minute spoken commute briefing. Start: Good morning, here is your utility briefing for ' + dateStr + '. Based on: ' + summary + ' End with one overall takeaway. No bullet points.';
+  var d2 = await anthropicCall([{ role: 'user', content: commutePrompt }], 600);
+  var script = extractText(d2);
+  console.log('Call 2: ' + script.length + ' chars');
 
-  var clean = text.replace(/```json|```/gi, '').trim();
-  var s = clean.indexOf('{');
-  var e = clean.lastIndexOf('}');
-  if (s === -1) {
-    console.error('No JSON found. Sample: ' + clean.slice(0, 200));
-    return null;
-  }
-  try {
-    var parsed = JSON.parse(clean.slice(s, e + 1));
-    console.log('Parsed ' + (parsed.utilities || []).length + ' utilities');
-    return parsed;
-  } catch(err) {
-    console.error('JSON parse error: ' + err.message + '. Sample: ' + clean.slice(s, s + 300));
-    return null;
-  }
+  var utilities = UTILITIES.map(function(u, i) {
+    var x = items[i] || {};
+    return {
+      utility:      u,
+      key_takeaway: x.t || 'No data available.',
+      news: [{ headline: x.h || 'Recent developments', category: x.c || 'news', summary: x.t || '', source: '' }],
+    };
+  });
+
+  return { utilities: utilities, commute_script: script };
 }
 
 // ── Build HTML email ──────────────────────────────────────────────────────────
