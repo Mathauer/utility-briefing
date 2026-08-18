@@ -62,10 +62,13 @@ function extractText(data) {
 async function generateBriefing(dateStr) {
   // Call 1: short utility summaries
   var prompt1 =
-    'For each of these utilities give ONE key headline and one-sentence takeaway from recent news. ' +
+    'Today is ' + dateStr + '. ' +
+    'For each of these utilities find ONE news item published TODAY or in the last 24 hours only. ' +
+    'Do NOT repeat stories from previous days. Only include genuinely new developments from today. ' +
+    'If there is no news from the last 24 hours for a utility, say so briefly. ' +
     'Utilities: ' + UTILITIES.join(', ') + '. ' +
     'Return ONLY this JSON array, no preamble, no markdown: ' +
-    '[{"u":"Georgia Power","t":"takeaway","h":"headline","c":"news"},{"u":"Duke Energy","t":"...","h":"...","c":"..."},...]';
+    '[{"u":"Georgia Power","t":"one sentence takeaway on todays news","h":"todays headline","c":"news|ma|financial|regulatory","date":"today"},{"u":"Duke Energy","t":"...","h":"...","c":"...","date":"..."},...]';
 
   console.log('Call 1: summaries...');
   var d1 = await anthropicCall([{ role: 'user', content: prompt1 }], 1500);
@@ -81,7 +84,7 @@ async function generateBriefing(dateStr) {
 
   // Call 2: commute script
   var summary = items.map(function(x) { return x.u + ': ' + x.t + '. ' + x.h; }).join(' ');
-  var commutePrompt = 'Write a spoken commute briefing for ' + dateStr + '. Write a SEPARATE paragraph for each utility — start each paragraph with the utility name in bold using <b>Utility Name</b> format. Begin with: Good morning, here is your utility briefing for ' + dateStr + '. After all utilities, add a final Overall Takeaway paragraph. No bullet points. Based on: ' + summary;
+  var commutePrompt = 'Write a spoken commute briefing for ' + dateStr + ' covering only NEW developments from today. Write a SEPARATE paragraph for each utility — start each paragraph with the utility name in bold using <b>Utility Name</b> format. Begin with: Good morning, here is your utility briefing for ' + dateStr + '. After all utilities, add a final Overall Takeaway paragraph. No bullet points. Only mention genuinely new items from today. Based on: ' + summary;
   var d2 = await anthropicCall([{ role: 'user', content: commutePrompt }], 1200);
   var script = extractText(d2);
   console.log('Call 2: ' + script.length + ' chars');
